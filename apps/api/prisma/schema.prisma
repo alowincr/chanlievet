@@ -1,0 +1,204 @@
+// ============================================================================
+// ChanlieVet · Esquema de base de datos (PostgreSQL + Prisma ORM 7)
+// ============================================================================
+// Nota: en Prisma 7 la URL de conexión se configura en `prisma7.config.ts`
+// (CLI) y mediante el driver adapter `@prisma/adapter-pg` (runtime).
+// ============================================================================
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  runtime                = "nodejs"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ----------------------------------------------------------------------------
+// Enums
+// ----------------------------------------------------------------------------
+
+enum StaffRole {
+  ADMIN
+  VETERINARIAN
+}
+
+enum Species {
+  DOG
+  CAT
+  OTHER
+}
+
+enum ProductAudience {
+  DOG
+  CAT
+  ALL
+}
+
+enum AppointmentStatus {
+  PENDING // Registrada por el cliente, pendiente de confirmación
+  CONFIRMED // Confirmada por recepción/admin
+  WAITING // Check-in realizado: en sala de espera virtual
+  IN_PROGRESS // En atención con un veterinario
+  COMPLETED // Atención finalizada
+  CANCELLED // Cancelada
+  NO_SHOW // El cliente no asistió
+}
+
+// ----------------------------------------------------------------------------
+// Personal de la clínica
+// ----------------------------------------------------------------------------
+
+model StaffUser {
+  id           Int       @id @default(autoincrement())
+  fullName     String
+  email        String    @unique
+  passwordHash String
+  role         StaffRole @default(VETERINARIAN)
+  active       Boolean   @default(true)
+  avatarUrl    String? // placeholder de avatar en el frontend
+  specialty    String? // especialidad visible en la web pública
+  bio          String? // presentación breve del veterinario/a
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  appointments Appointment[]
+
+  @@map("staff_users")
+}
+
+// ----------------------------------------------------------------------------
+// Dueños y mascotas (citas sin registro obligatorio)
+// ----------------------------------------------------------------------------
+
+model Owner {
+  id         Int      @id @default(autoincrement())
+  fullName   String
+  phone      String   @unique
+  email      String?
+  documentId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  pets         Pet[]
+  appointments Appointment[]
+
+  @@index([fullName])
+  @@map("owners")
+}
+
+model Pet {
+  id        Int      @id @default(autoincrement())
+  name      String
+  species   Species
+  breed     String?
+  birthDate DateTime?
+  photoUrl  String? // placeholder de avatar/foto en el frontend
+  notes     String?
+  ownerId   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner        Owner         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@index([ownerId])
+  @@map("pets")
+}
+
+// ----------------------------------------------------------------------------
+// Catálogo de servicios de la clínica
+// ----------------------------------------------------------------------------
+
+model Service {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  durationMin Int      @default(30)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  appointments Appointment[]
+
+  @@map("services")
+}
+
+// ----------------------------------------------------------------------------
+// Citas y cola de atención
+// ----------------------------------------------------------------------------
+
+model Appointment {
+  id           Int               @id @default(autoincrement())
+  code         String            @unique // código público de seguimiento, ej. CV-7K2M9A
+  status       AppointmentStatus @default(PENDING)
+  scheduledAt  DateTime
+  reason       String?
+  notes        String?
+  checkedInAt  DateTime? // cuándo entró a la sala de espera virtual
+  startedAt    DateTime? // cuándo el veterinario inició la atención
+  finishedAt   DateTime? // cuándo finalizó la atención
+  ownerId      Int
+  petId        Int
+  serviceId    Int
+  assignedVetId Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner       Owner      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  pet         Pet        @relation(fields: [petId], references: [id], onDelete: Cascade)
+  service     Service    @relation(fields: [serviceId], references: [id])
+  assignedVet StaffUser? @relation(fields: [assignedVetId], references: [id], onDelete: SetNull)
+
+  @@index([status, scheduledAt])
+  @@index([checkedInAt])
+  @@index([assignedVetId])
+  @@index([scheduledAt])
+  @@map("appointments")
+}
+
+// ----------------------------------------------------------------------------
+// Tienda (e-commerce básico)
+// ----------------------------------------------------------------------------
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  description String?
+  imageUrl    String? // placeholder de imagen en el frontend
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          Int             @id @default(autoincrement())
+  name        String
+  slug        String          @unique
+  description String?
+  price       Decimal         @db.Decimal(10, 2)
+  stock       Int             @default(0)
+  audience    ProductAudience @default(ALL)
+  imageUrl    String? // placeholder de imagen en el frontend
+  active      Boolean         @default(true)
+  categoryId  Int
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId])
+  @@index([audience, active])
+  @@index([active, stock])
+  @@map("products")
+}

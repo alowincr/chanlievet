@@ -1,0 +1,21 @@
+{
+  "name": "chanlievet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ChanlieVet - Plataforma integral para clínica veterinaria en San Juan de Lurigancho, Lima",
+  "scripts": {
+    "install:all": "npm --prefix apps/api install && npm --prefix apps/web install",
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "build": "npm --prefix apps/api run build && npm --prefix apps/web run build",
+    "db:generate": "npm --prefix apps/api run db:generate",
+    "db:migrate": "npm --prefix apps/api run db:migrate",
+    "db:deploy": "npm --prefix apps/api run db:deploy",
+    "db:seed": "npm --prefix apps/api run db:seed",
+    "db:studio": "npm --prefix apps/api run db:studio",
+    "db:up": "docker compose up -d db",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down -v"
+  }
+}

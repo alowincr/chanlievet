@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+
+  /* Verde bosque: más profundo y menos "template" que el esmeralda anterior. */
+  --color-brand-50: #f0f7f2;
+  --color-brand-100: #dcefe3;
+  --color-brand-200: #b8dfc9;
+  --color-brand-300: #8ac9ac;
+  --color-brand-400: #57ad8a;
+  --color-brand-500: #338f6d;
+  --color-brand-600: #1f7256;
+  --color-brand-700: #1a5b46;
+  --color-brand-800: #164938;
+  --color-brand-900: #12382d;
+  --color-brand-950: #081f19;
+
+  --color-forest-900: #12382d;
+  --color-forest-950: #081f19;
+
+  /* Acentos cálidos: coral para llamados de atención y detalles editoriales. */
+  --color-coral-50: #fff1ec;
+  --color-coral-100: #ffe0d5;
+  --color-coral-200: #ffc1ab;
+  --color-coral-300: #ff9a78;
+  --color-coral-400: #f8734c;
+  --color-coral-500: #e85a33;
+  --color-coral-600: #c94522;
+  --color-coral-700: #a5361a;
+  --color-coral-800: #862d18;
+  --color-coral-900: #6f2817;
+
+  /* Fondo crema editorial, en lugar del gris frío genérico. */
+  --color-cream-50: #fbf7ee;
+  --color-cream-100: #f5eddd;
+  --color-cream-200: #eadcc3;
+  --color-cream-300: #dcc9a5;
+
+  --color-sand-50: #fbf7ee;
+  --color-sand-100: #f5eddd;
+  --color-sand-200: #eadcc3;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-cream-50 font-sans text-stone-800 antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    @apply bg-coral-200 text-forest-950;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .bg-dots {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      rgb(18 56 45 / 0.16) 1px,
+      transparent 0
+    );
+    background-size: 22px 22px;
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgb(18 56 45 / 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(18 56 45 / 0.06) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Carrusel del equipo: dos copias exactas del grupo, desplazadas al 50 %. */
+  @keyframes marquee {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  .animate-marquee {
+    animation: marquee 48s linear infinite;
+    will-change: transform;
+  }
+
+  .marquee:hover .animate-marquee {
+    animation-play-state: paused;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-marquee {
+      animation: none;
+      transform: none;
+    }
+  }
+}
