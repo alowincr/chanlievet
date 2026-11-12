@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import {
   Clock,
+  IdCard,
   Mail,
   PawPrint,
   Phone,
@@ -69,7 +70,7 @@ export default function AdminPatientsPage() {
               <Input
                 value={searchDraft}
                 onChange={(event) => setSearchDraft(event.target.value)}
-                placeholder="Buscar por dueño, celular, correo o mascota"
+                placeholder="Buscar por dueño, DNI, celular, correo o mascota"
                 className="pl-10"
                 aria-label="Buscar pacientes"
               />
@@ -170,6 +171,17 @@ export default function AdminPatientsPage() {
                       <span className="inline-flex items-center gap-2 rounded-xl border border-dashed border-stone-200 px-3 py-2 text-stone-400">
                         <Mail className="size-4" />
                         Sin correo
+                      </span>
+                    )}
+                    {owner.documentId ? (
+                      <span className="inline-flex items-center gap-2 rounded-xl border border-stone-200 px-3 py-2 text-stone-700">
+                        <IdCard className="size-4 text-brand-600" />
+                        DNI {owner.documentId}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-2 rounded-xl border border-dashed border-stone-200 px-3 py-2 text-stone-400">
+                        <IdCard className="size-4" />
+                        Sin DNI registrado
                       </span>
                     )}
                   </div>

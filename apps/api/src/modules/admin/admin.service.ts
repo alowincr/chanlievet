@@ -209,6 +209,7 @@ export async function listPatients(
       { fullName: { contains: search, mode: "insensitive" } },
       { phone: { contains: search } },
       { email: { contains: search, mode: "insensitive" } },
+      { documentId: { contains: search } },
       { pets: { some: { name: { contains: search, mode: "insensitive" } } } },
     ];
   }
@@ -248,6 +249,7 @@ export async function listPatients(
       fullName: owner.fullName,
       phone: owner.phone,
       email: owner.email,
+      documentId: owner.documentId,
       createdAt: owner.createdAt.toISOString(),
       appointmentsCount: owner._count.appointments,
       lastVisitAt: owner.appointments[0]?.scheduledAt.toISOString() ?? null,

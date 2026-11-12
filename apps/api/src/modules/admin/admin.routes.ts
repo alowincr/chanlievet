@@ -16,6 +16,17 @@ import {
   listProducts,
   updateProduct,
 } from "../products/product.service";
+import {
+  createStaffSchema,
+  listStaffQuerySchema,
+  updateStaffSchema,
+} from "../staff/staff.schema";
+import {
+  createStaff,
+  deactivateStaff,
+  listStaff,
+  updateStaff,
+} from "../staff/staff.service";
 
 const router = Router();
 
@@ -74,5 +85,41 @@ router.patch(
     res.json({ product });
   },
 );
+
+/**
+ * GET /api/admin/staff — listado de usuarios del equipo.
+ * Incluye inactivos para poder reactivarlos.
+ */
+router.get("/staff", async (req, res) => {
+  const query = listStaffQuerySchema.parse(req.query);
+  res.json(await listStaff(query));
+});
+
+/** POST /api/admin/staff — crea un usuario del equipo. */
+router.post("/staff", validateBody(createStaffSchema), async (req, res) => {
+  const user = await createStaff(req.body);
+  res.status(201).json({ user });
+});
+
+/** PATCH /api/admin/staff/:id — edita datos, rol, contraseña o estado. */
+router.patch(
+  "/staff/:id",
+  validateBody(updateStaffSchema),
+  async (req, res) => {
+    const id = parseId(req.params.id, "ID de usuario");
+    const user = await updateStaff(id, req.body, req.user!.id);
+    res.json({ user });
+  },
+);
+
+/**
+ * DELETE /api/admin/staff/:id — baja lógica (desactiva la cuenta).
+ * Se conserva el registro para no perder el historial de citas.
+ */
+router.delete("/staff/:id", async (req, res) => {
+  const id = parseId(req.params.id, "ID de usuario");
+  const user = await deactivateStaff(id, req.user!.id);
+  res.json({ user });
+});
 
 export default router;

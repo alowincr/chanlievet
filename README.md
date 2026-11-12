@@ -13,11 +13,11 @@ Plataforma web para una clínica veterinaria ficticia con **una sola sede en San
 - **Tienda** con categorías, filtros por público (perro/gato), búsqueda, orden por precio y carrito persistente en `localStorage`.
 - **Detalle de producto** con stock real, cantidades y coordinación por WhatsApp.
 - **Carrito** con resumen y mensaje de pedido prearmado para WhatsApp (sin pasarela de pago).
-- **Agendar cita** sin crear cuenta: dueño + mascota + servicio + fecha/hora. Al confirmar se entrega un código único (`CV-XXXXXX`).
+- **Agendar cita** sin crear cuenta: dueño (nombre, celular y **DNI de 8 dígitos**), mascota, servicio y fecha/hora. Al confirmar se entrega un código único (`CV-XXXXXX`).
   - Horarios calculados en la zona horaria de Lima y deshabilitados cuando ya están ocupados.
   - Confirmación con resumen antes de enviar y recuperación de la cita al recargar (`?codigo=`).
   - Bloqueo de reservas duplicadas (mismo celular + mismo horario) desde el servidor.
-  - Recuperación del código perdido con celular + nombre de la mascota.
+  - Recuperación del código perdido con **celular o DNI + nombre de la mascota**.
 - **Seguimiento** por código: estado de la cita, posición en la cola, check-in con ventana de 2 horas y actualizaciones por WebSocket.
 - **Sala de espera virtual**: solo citas de hoy (calendario de Lima); nombres parciales en la vista pública.
 - **Login de personal** con JWT y cuentas demo.
@@ -27,7 +27,8 @@ Plataforma web para una clínica veterinaria ficticia con **una sola sede en San
 - **Sala en vivo** y **actividad reciente** (llegadas, inicios y cierres de atención) actualizadas en tiempo real.
 - Agenda de citas con filtros por estado, fecha y búsqueda; cambio de estado y asignación de veterinario.
 - Confirmación antes de cancelar, marcar inasistencia o finalizar; restauración de citas canceladas o con inasistencia.
-- **Pacientes y dueños** (`/admin/pacientes`): datos de contacto, mascotas e historial básico de visitas.
+- **Pacientes y dueños** (`/admin/pacientes`): datos de contacto, DNI, mascotas e historial básico de visitas.
+- **Personal** (`/admin/personal`): crear y editar usuarios, cambiar roles, asignar especialidad y presentación, restablecer contraseña y desactivar/reactivar cuentas. Se protege la cuenta propia y exige al menos un administrador activo; la baja es lógica para no perder el historial de citas.
 - Inventario: crear/editar productos, ajustar stock, activar/ocultar, alertas de stock bajo.
 
 ### Panel veterinario (`/veterinario`)
@@ -253,6 +254,9 @@ Base: `http://localhost:4000/api`
 | `GET`/`POST` | `/admin/products` | admin |
 | `PATCH` | `/admin/products/:id` | admin |
 | `PATCH` | `/admin/products/:id/stock` | admin |
+| `GET`/`POST` | `/admin/staff` | admin |
+| `PATCH` | `/admin/staff/:id` | admin |
+| `DELETE` | `/admin/staff/:id` | admin (baja lógica) |
 
 Errores: `{ "error": "mensaje", "details"?: [...] }` con códigos HTTP 400/401/404/409/500. Las validaciones usan Zod.
 
@@ -305,11 +309,11 @@ La cola se **deriva** de las citas (`WAITING` / `IN_PROGRESS`) y se filtra por e
 - **Una sola sede**: toda la información y los enlaces corresponden a San Juan de Lurigancho. No se ofrecen otras ubicaciones.
 - La sala pública solo muestra el **nombre de la mascota**, el **primer nombre + inicial** del dueño, el servicio y los tiempos. No expone celulares, correos, documentos ni códigos de seguimiento.
 - El snapshot de Socket.io es público y va anonimizado; los nombres completos se consultan con JWT en `/api/queue/staff`.
-- La recuperación de citas exige **celular + nombre de la mascota** y devuelve solo las citas de esa combinación.
+- La recuperación de citas exige el **nombre de la mascota** y al menos un dato del dueño (**celular o DNI**) y devuelve solo las citas de esa combinación.
 - El check-in solo se permite el **día de la cita** (calendario de Lima) y desde 2 horas antes.
 - El servidor rechaza reservas duplicadas con el mismo celular y el mismo horario, incluso si se recarga la página. Un **advisory lock de PostgreSQL** serializa dos peticiones simultáneas, de modo que solo una reserva se crea (la otra recibe `409`).
 - `.env`, `.env.local`, builds, logs y el cliente Prisma generado están en `.gitignore`. El repositorio solo incluye `.env.example` con valores de demostración.
-- Los teléfonos, correos y contraseñas del seed son ficticios. Cambia `JWT_SECRET` y las credenciales demo antes de un despliegue real.
+- Los nombres, teléfonos, DNI, correos y contraseñas del seed son ficticios. Cambia `JWT_SECRET` y las credenciales demo antes de un despliegue real.
 
 ---
 
@@ -337,6 +341,7 @@ Ambas apps compilan con TypeScript estricto y Next.js genera el build standalone
 Además se ejecutaron pruebas funcionales contra el API local:
 
 - **Reserva y privacidad (17/17)**: creación, bloqueo de duplicado, seguimiento por código, recuperación del código perdido, check-in del día, anonimización en la sala pública (`Prueba A.`, sin código ni contactos) y nombres completos en `/api/queue/staff`.
+- **DNI y gestión de personal (17/17)**: DNI obligatorio de 8 dígitos, recuperación por celular o DNI + mascota, listado/creación/edición de usuarios, correo duplicado bloqueado, baja lógica y reactivación, bloqueo de acceso para cuentas inactivas, y protección de la cuenta propia (no puede desactivarse ni quitarse el rol de administrador).
 - **Concurrencia**: dos `POST /api/appointments` simultáneos con el mismo celular y horario → `201` + `409`.
 - **Restauración**: cancelar una cita y volver a `CONFIRMED` desde el panel admin; la cita deja de aparecer en la cola.
 - **Auditoría de UI** en escritorio (1440 px) y móvil (390 px): 0 desbordes horizontales, 0 errores de consola, tipografías y paleta correctas; el carrusel del equipo tiene un salto de costura de **0 px**, botón de pausa/reanudar y respeta `prefers-reduced-motion`.

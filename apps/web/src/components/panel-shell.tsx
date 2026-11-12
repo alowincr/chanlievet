@@ -12,6 +12,7 @@ import {
   PawPrint,
   Radio,
   Stethoscope,
+  UserCog,
   UsersRound,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
@@ -24,6 +25,7 @@ const ADMIN_NAV = [
   { href: "/admin", label: "Resumen", icon: LayoutDashboard },
   { href: "/admin/citas", label: "Citas", icon: ClipboardList },
   { href: "/admin/pacientes", label: "Pacientes", icon: UsersRound },
+  { href: "/admin/personal", label: "Personal", icon: UserCog },
   { href: "/admin/productos", label: "Productos", icon: Package },
 ];
 

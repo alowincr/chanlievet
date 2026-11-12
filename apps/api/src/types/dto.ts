@@ -51,6 +51,13 @@ export interface StaffDTO {
   bio: string | null;
 }
 
+/** Usuario de staff con métricas visibles solo en el panel de administración. */
+export interface AdminStaffDTO extends StaffDTO {
+  appointmentsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PublicVeterinarianDTO {
   id: number;
   fullName: string;
@@ -168,6 +175,7 @@ export interface PatientOwnerDTO {
   fullName: string;
   phone: string;
   email: string | null;
+  documentId: string | null;
   createdAt: string;
   appointmentsCount: number;
   lastVisitAt: string | null;

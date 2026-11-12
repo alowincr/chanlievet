@@ -162,6 +162,7 @@ export default function BookingPage() {
   // Recuperación del código perdido.
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [recoveryPhone, setRecoveryPhone] = useState("");
+  const [recoveryDocumentId, setRecoveryDocumentId] = useState("");
   const [recoveryPet, setRecoveryPet] = useState("");
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
@@ -266,6 +267,11 @@ export default function BookingPage() {
       return;
     }
 
+    if (!/^\d{8}$/.test(form.documentId)) {
+      setError("Ingresa un DNI válido de 8 dígitos.");
+      return;
+    }
+
     if (!form.fullName.trim() || !form.petName.trim()) {
       setError("Completa el nombre del dueño y de la mascota.");
       return;
@@ -292,7 +298,7 @@ export default function BookingPage() {
               fullName: form.fullName.trim(),
               phone: form.phone,
               email: form.email.trim() || undefined,
-              documentId: form.documentId.trim() || undefined,
+              documentId: form.documentId,
             },
             pet: {
               name: form.petName.trim(),
@@ -343,10 +349,21 @@ export default function BookingPage() {
 
   async function handleRecovery(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setRecoveryBusy(true);
     setRecoveryError(null);
     setRecoveryResults([]);
     setRecoverySearched(false);
+
+    if (!recoveryPhone && !recoveryDocumentId) {
+      setRecoveryError("Ingresa el celular o el DNI que usaste al reservar.");
+      return;
+    }
+
+    if (!recoveryPet.trim()) {
+      setRecoveryError("Ingresa el nombre de tu mascota.");
+      return;
+    }
+
+    setRecoveryBusy(true);
 
     try {
       const response = await apiFetch<{ appointments: Appointment[] }>(
@@ -354,7 +371,11 @@ export default function BookingPage() {
         {
           method: "POST",
           auth: false,
-          body: { phone: recoveryPhone, petName: recoveryPet.trim() },
+          body: {
+            phone: recoveryPhone || undefined,
+            documentId: recoveryDocumentId || undefined,
+            petName: recoveryPet.trim(),
+          },
         },
       );
       setRecoveryResults(response.appointments);
@@ -536,9 +557,13 @@ export default function BookingPage() {
           <LoadingBlock label="Cargando servicios disponibles..." />
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="mt-8">
+        <div className="mt-8">
           <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-            <div className="space-y-5">
+            <form
+              id="booking-form"
+              onSubmit={handleSubmit}
+              className="space-y-5"
+            >
               <Card>
                 <CardHeader
                   title="1. Servicio"
@@ -742,17 +767,25 @@ export default function BookingPage() {
                   <Field
                     label="DNI"
                     htmlFor="documentId"
-                    hint="Opcional"
+                    required
+                    hint="8 dígitos, sin espacios."
                     className="sm:col-span-2"
+                    error={fieldErrors["owner.documentId"]}
                   >
                     <Input
                       id="documentId"
                       value={form.documentId}
                       onChange={(event) =>
-                        update("documentId", event.target.value)
+                        update(
+                          "documentId",
+                          event.target.value.replace(/\D/g, "").slice(0, 8),
+                        )
                       }
-                      placeholder="Documento de identidad"
-                      maxLength={20}
+                      placeholder="12345678"
+                      inputMode="numeric"
+                      pattern="[0-9]{8}"
+                      maxLength={8}
+                      required
                     />
                   </Field>
                 </div>
@@ -862,7 +895,7 @@ export default function BookingPage() {
                   </Field>
                 </div>
               </Card>
-            </div>
+            </form>
 
             <aside className="h-fit space-y-4 lg:sticky lg:top-28">
               <Card>
@@ -932,7 +965,13 @@ export default function BookingPage() {
 
               {error ? <Alert variant="error">{error}</Alert> : null}
 
-              <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+              <Button
+                type="submit"
+                form="booking-form"
+                size="lg"
+                className="w-full"
+                disabled={submitting}
+              >
                 {submitting ? "Registrando cita..." : "Confirmar cita"}
               </Button>
 
@@ -968,8 +1007,8 @@ export default function BookingPage() {
                     className="space-y-3 border-t border-stone-100 p-4"
                   >
                     <p className="text-xs leading-relaxed text-stone-500">
-                      Busca tus citas con el celular que usaste al reservar y el
-                      nombre de tu mascota.
+                      Busca tus citas con el celular o el DNI que usaste al
+                      reservar, y el nombre de tu mascota.
                     </p>
                     <Input
                       type="tel"
@@ -983,7 +1022,17 @@ export default function BookingPage() {
                       placeholder="Celular (9 dígitos)"
                       inputMode="numeric"
                       aria-label="Celular usado al reservar"
-                      required
+                    />
+                    <Input
+                      value={recoveryDocumentId}
+                      onChange={(event) =>
+                        setRecoveryDocumentId(
+                          event.target.value.replace(/\D/g, "").slice(0, 8),
+                        )
+                      }
+                      placeholder="DNI (8 dígitos)"
+                      inputMode="numeric"
+                      aria-label="DNI usado al reservar"
                     />
                     <Input
                       value={recoveryPet}
@@ -1013,8 +1062,9 @@ export default function BookingPage() {
                     recoveryError === null &&
                     recoveryResults.length === 0 ? (
                       <p className="text-[11px] text-stone-500">
-                        No encontramos citas con esos datos. Revisa el celular y
-                        el nombre de tu mascota, o escríbenos por WhatsApp.
+                        No encontramos citas con esos datos. Revisa el celular o
+                        el DNI y el nombre de tu mascota, o escríbenos por
+                        WhatsApp.
                       </p>
                     ) : null}
 
@@ -1051,7 +1101,7 @@ export default function BookingPage() {
               </Card>
             </aside>
           </div>
-        </form>
+        </div>
       )}
 
       <ConfirmDialog
@@ -1101,6 +1151,12 @@ export default function BookingPage() {
             <span className="text-stone-500">Celular</span>
             <span className="text-right font-semibold text-stone-800">
               {form.phone || "—"}
+            </span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span className="text-stone-500">DNI</span>
+            <span className="text-right font-semibold text-stone-800">
+              {form.documentId || "—"}
             </span>
           </div>
         </div>

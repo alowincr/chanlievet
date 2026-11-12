@@ -25,6 +25,15 @@ const phoneSchema = z
       .regex(/^9\d{8}$/, "Ingresa un celular válido de 9 dígitos (Perú)"),
   );
 
+const documentIdSchema = z
+  .string()
+  .transform((value) => value.replace(/\D/g, ""))
+  .pipe(
+    z
+      .string()
+      .regex(/^\d{8}$/, "Ingresa un DNI válido de 8 dígitos"),
+  );
+
 export const createAppointmentSchema = z
   .object({
     owner: z.object({
@@ -38,7 +47,7 @@ export const createAppointmentSchema = z
         (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
         z.string().trim().email("Correo inválido").max(160).optional(),
       ),
-      documentId: optionalText(20),
+      documentId: documentIdSchema,
     }),
     pet: z.object({
       name: z.string().trim().min(1, "Ingresa el nombre de la mascota").max(80),
@@ -87,10 +96,16 @@ export const listAppointmentsQuerySchema = z.object({
 export type ListAppointmentsQuery = z.infer<typeof listAppointmentsQuerySchema>;
 
 /** Búsqueda pública de citas cuando el cliente perdió su código. */
-export const lookupAppointmentsSchema = z.object({
-  phone: phoneSchema,
-  petName: z.string().trim().min(1, "Ingresa el nombre de tu mascota").max(80),
-});
+export const lookupAppointmentsSchema = z
+  .object({
+    phone: phoneSchema.optional(),
+    documentId: documentIdSchema.optional(),
+    petName: z.string().trim().min(1, "Ingresa el nombre de tu mascota").max(80),
+  })
+  .refine((data) => Boolean(data.phone || data.documentId), {
+    path: ["phone"],
+    message: "Ingresa el celular o el DNI usado al reservar",
+  });
 
 export type LookupAppointmentsInput = z.infer<typeof lookupAppointmentsSchema>;
 

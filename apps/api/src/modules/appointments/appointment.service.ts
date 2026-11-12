@@ -409,15 +409,22 @@ export async function getAvailability(
 
 /**
  * Recupera las citas de un cliente que perdió su código.
- * Exige celular + nombre de la mascota para no exponer datos de terceros.
+ * Exige el nombre de la mascota y al menos un dato del dueño (celular o DNI)
+ * para no exponer datos de terceros.
  */
 export async function lookupAppointments(input: {
-  phone: string;
+  phone?: string;
+  documentId?: string;
   petName: string;
 }): Promise<AppointmentDTO[]> {
+  const ownerFilters: Prisma.OwnerWhereInput[] = [];
+
+  if (input.phone) ownerFilters.push({ phone: input.phone });
+  if (input.documentId) ownerFilters.push({ documentId: input.documentId });
+
   const appointments = await prisma.appointment.findMany({
     where: {
-      owner: { phone: input.phone },
+      owner: { OR: ownerFilters },
       pet: { name: { equals: input.petName, mode: "insensitive" } },
     },
     include: appointmentInclude,

@@ -48,6 +48,13 @@ export interface StaffUser {
   bio: string | null;
 }
 
+/** Usuario del equipo con datos visibles solo en el panel de administración. */
+export interface AdminStaff extends StaffUser {
+  appointmentsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PublicVeterinarian {
   id: number;
   fullName: string;
@@ -159,6 +166,7 @@ export interface PatientOwner {
   fullName: string;
   phone: string;
   email: string | null;
+  documentId: string | null;
   createdAt: string;
   appointmentsCount: number;
   lastVisitAt: string | null;

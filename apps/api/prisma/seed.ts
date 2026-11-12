@@ -422,6 +422,7 @@ async function main(): Promise<void> {
       fullName: "Rosa Huamán",
       phone: "987654321",
       email: "rosa.huaman@example.com",
+      documentId: "45678901",
     },
   });
   const carlos = await prisma.owner.create({
@@ -429,18 +430,21 @@ async function main(): Promise<void> {
       fullName: "Carlos Mendoza",
       phone: "912345678",
       email: "carlos.mendoza@example.com",
+      documentId: "41234567",
     },
   });
   const ana = await prisma.owner.create({
     data: {
       fullName: "Ana Torres",
       phone: "955112233",
+      documentId: "48765432",
     },
   });
   const jose = await prisma.owner.create({
     data: {
       fullName: "José Paredes",
       phone: "944556677",
+      documentId: "40112233",
     },
   });
   const maria = await prisma.owner.create({
@@ -448,6 +452,7 @@ async function main(): Promise<void> {
       fullName: "María Flores",
       phone: "933221144",
       email: "maria.flores@example.com",
+      documentId: "47889900",
     },
   });
 
