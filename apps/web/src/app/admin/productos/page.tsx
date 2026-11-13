@@ -508,102 +508,53 @@ export default function AdminProductsPage() {
             title="Catálogo"
             description={`${products.data?.products.length ?? 0} producto(s)`}
           />
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="border-b border-stone-100 text-left text-[11px] uppercase tracking-wide text-stone-400">
-                  <th className="px-4 py-2.5 font-semibold">Producto</th>
-                  <th className="px-4 py-2.5 font-semibold">Público</th>
-                  <th className="px-4 py-2.5 font-semibold">Precio</th>
-                  <th className="px-4 py-2.5 font-semibold">Stock</th>
-                  <th className="px-4 py-2.5 font-semibold">Estado</th>
-                  <th className="px-4 py-2.5 text-right font-semibold">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {products.data?.products.map((product) => (
-                  <tr
-                    key={product.id}
-                    className={product.lowStock ? "bg-amber-50/40" : undefined}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <ProductImage
-                          name={product.name}
-                          categorySlug={product.category.slug}
-                          imageUrl={product.imageUrl}
-                          className="size-14 shrink-0"
-                          iconClassName="size-5"
-                          showLabel={false}
-                        />
-                        <div className="flex min-w-0 flex-col items-start gap-0.5">
-                          <Link
-                            href={`/producto/${product.slug}`}
-                            target="_blank"
-                            className="max-w-full truncate font-medium text-stone-900 hover:text-brand-700 hover:underline"
-                          >
-                            {product.name}
-                          </Link>
-                          <Link
-                            href={`/producto/${product.slug}`}
-                            target="_blank"
-                            className="inline-flex max-w-full items-center gap-1 text-[11px] text-stone-400 hover:text-brand-700"
-                            title="Abrir la ficha pública en una pestaña nueva"
-                          >
-                            <span className="truncate">
-                              {product.category.name} · /producto/{product.slug}
-                            </span>
-                            <ExternalLink className="size-3 shrink-0" />
-                          </Link>
-                        </div>
-                      </div>
-                    </td>
+          <div className="hidden border-b border-stone-100 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-stone-400 xl:grid xl:grid-cols-[minmax(0,1fr)_76px_104px_76px_150px] xl:gap-3">
+            <span>Producto</span>
+            <span className="text-right">Precio</span>
+            <span>Stock</span>
+            <span>Estado</span>
+            <span className="text-right">Acciones</span>
+          </div>
 
-                    <td className="px-4 py-3">
-                      <Badge
-                        tone={
-                          product.audience === "CAT"
-                            ? "sky"
-                            : product.audience === "DOG"
-                              ? "amber"
-                              : "neutral"
-                        }
-                      >
-                        {AUDIENCE_LABELS[product.audience]}
-                      </Badge>
-                    </td>
+          <ul className="divide-y divide-stone-100">
+            {products.data?.products.map((product) => (
+              <li
+                key={product.id}
+                className={`grid gap-3 px-4 py-3.5 transition-colors hover:bg-stone-50/60 sm:px-5 xl:grid-cols-[minmax(0,1fr)_76px_104px_76px_150px] xl:items-center xl:py-3 ${
+                  product.lowStock ? "bg-amber-50/40" : ""
+                }`}
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                    <ProductImage
+                      name={product.name}
+                      categorySlug={product.category.slug}
+                      imageUrl={product.imageUrl}
+                      className="size-16 shrink-0"
+                      iconClassName="size-6"
+                      showLabel={false}
+                    />
 
-                    <td className="whitespace-nowrap px-4 py-3 font-semibold text-stone-800">
-                      {formatCurrency(product.price)}
-                    </td>
-
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="inline-flex items-center rounded-full border border-stone-200 bg-white">
-                          <button
-                            type="button"
-                            onClick={() => void adjustStock(product, -1)}
-                            disabled={busy === product.id || product.stock === 0}
-                            className="grid size-7 place-items-center text-stone-500 hover:text-stone-900 disabled:opacity-40"
-                            aria-label={`Reducir stock de ${product.name}`}
-                          >
-                            <Minus className="size-3" />
-                          </button>
-                          <span className="w-8 text-center text-xs font-bold tabular-nums">
-                            {product.stock}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => void adjustStock(product, 1)}
-                            disabled={busy === product.id}
-                            className="grid size-7 place-items-center text-stone-500 hover:text-stone-900 disabled:opacity-40"
-                            aria-label={`Aumentar stock de ${product.name}`}
-                          >
-                            <Plus className="size-3" />
-                          </button>
-                        </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Link
+                          href={`/producto/${product.slug}`}
+                          target="_blank"
+                          title={product.name}
+                          className="block max-w-full font-semibold text-stone-900 hover:text-brand-700 hover:underline xl:truncate"
+                        >
+                          {product.name}
+                        </Link>
+                        <Badge
+                          tone={
+                            product.audience === "CAT"
+                              ? "sky"
+                              : product.audience === "DOG"
+                                ? "amber"
+                                : "neutral"
+                          }
+                        >
+                          {AUDIENCE_LABELS[product.audience]}
+                        </Badge>
                         {product.lowStock ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700">
                             <TriangleAlert className="size-3" />
@@ -611,41 +562,81 @@ export default function AdminProductsPage() {
                           </span>
                         ) : null}
                       </div>
-                    </td>
 
-                    <td className="px-4 py-3">
-                      <Badge tone={product.active ? "emerald" : "neutral"}>
-                        {product.active ? "Activo" : "Inactivo"}
-                      </Badge>
-                    </td>
+                      <Link
+                        href={`/producto/${product.slug}`}
+                        target="_blank"
+                        className="mt-0.5 inline-flex max-w-full items-center gap-1 text-[11px] text-stone-400 hover:text-brand-700"
+                        title="Abrir la ficha pública en una pestaña nueva"
+                      >
+                        <span className="truncate">
+                          {product.category.name} · /producto/{product.slug}
+                        </span>
+                        <ExternalLink className="size-3 shrink-0" />
+                      </Link>
+                    </div>
+                  </div>
 
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openEdit(product)}
-                          className="px-2.5 text-[11px]"
-                        >
-                          <Pencil className="size-3" />
-                          Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={product.active ? "ghost" : "primary"}
-                          disabled={busy === product.id}
-                          onClick={() => void toggleActive(product)}
-                          className="px-2.5 text-[11px]"
-                        >
-                          {product.active ? "Ocultar" : "Activar"}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-stone-100 pt-3 xl:contents">
+                    <p className="whitespace-nowrap text-base font-bold text-stone-900 xl:text-right xl:text-[15px]">
+                      {formatCurrency(product.price)}
+                    </p>
+
+                    <div className="inline-flex items-center rounded-full border border-stone-200 bg-white">
+                      <button
+                        type="button"
+                        onClick={() => void adjustStock(product, -1)}
+                        disabled={busy === product.id || product.stock === 0}
+                        className="grid size-8 place-items-center text-stone-500 hover:text-stone-900 disabled:opacity-40"
+                        aria-label={`Reducir stock de ${product.name}`}
+                      >
+                        <Minus className="size-3.5" />
+                      </button>
+                      <span className="w-9 text-center text-xs font-bold tabular-nums">
+                        {product.stock}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void adjustStock(product, 1)}
+                        disabled={busy === product.id}
+                        className="grid size-8 place-items-center text-stone-500 hover:text-stone-900 disabled:opacity-40"
+                        aria-label={`Aumentar stock de ${product.name}`}
+                      >
+                        <Plus className="size-3.5" />
+                      </button>
+                    </div>
+
+                    <Badge
+                      tone={product.active ? "emerald" : "neutral"}
+                      className="xl:justify-self-start"
+                    >
+                      {product.active ? "Activo" : "Inactivo"}
+                    </Badge>
+
+                    <div className="flex gap-1.5 xl:justify-self-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEdit(product)}
+                        className="px-2.5 text-[11px]"
+                      >
+                        <Pencil className="size-3" />
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={product.active ? "ghost" : "primary"}
+                        disabled={busy === product.id}
+                        onClick={() => void toggleActive(product)}
+                        className="px-2.5 text-[11px]"
+                      >
+                        {product.active ? "Ocultar" : "Activar"}
+                      </Button>
+                    </div>
+                  </div>
+              </li>
+            ))}
+          </ul>
         </Card>
       )}
     </div>
