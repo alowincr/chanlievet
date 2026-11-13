@@ -47,6 +47,7 @@ export function ProductImage({
   iconClassName,
   showLabel = true,
   zoomable = false,
+  priority = false,
 }: {
   name: string;
   categorySlug: string;
@@ -56,6 +57,8 @@ export function ProductImage({
   showLabel?: boolean;
   /** Permite abrir la imagen en grande con un clic. */
   zoomable?: boolean;
+  /** Carga la imagen de inmediato (útil para la ficha principal). */
+  priority?: boolean;
 }) {
   const style = CATEGORY_STYLES[categorySlug] ?? {
     gradient: "from-brand-100 via-brand-50 to-white text-brand-500",
@@ -101,7 +104,8 @@ export function ProductImage({
           <img
             src={imageUrl ?? ""}
             alt={name}
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
             decoding="async"
             referrerPolicy="no-referrer"
             draggable={false}

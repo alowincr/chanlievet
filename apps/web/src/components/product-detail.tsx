@@ -133,6 +133,7 @@ export function ProductDetail({ slug }: { slug: string }) {
             className="aspect-square w-full"
             iconClassName="size-24"
             zoomable
+            priority
           />
           <div className="mt-3 grid grid-cols-3 gap-2">
             {[
