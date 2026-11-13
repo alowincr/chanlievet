@@ -32,7 +32,7 @@ import {
   formatDate,
   formatTime,
 } from "@/lib/format";
-import type { Appointment, Service, Species } from "@/lib/types";
+import type { Appointment, Availability, Service, Species } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 // Lima no tiene horario de verano: siempre UTC-5.
@@ -171,16 +171,34 @@ export default function BookingPage() {
 
   const dayOptions = useMemo(() => nextDays(5), []);
   const today = useMemo(() => limaDateKey(), []);
-  const slots = useMemo(() => buildSlots(date), [date]);
+  const localSlots = useMemo(() => buildSlots(date), [date]);
 
-  const availability = useApiQuery<{ date: string; slots: string[] }>(
-    date ? `/api/appointments/availability?date=${date}` : null,
+  const availability = useApiQuery<Availability>(
+    date
+      ? `/api/appointments/availability?date=${date}${
+          serviceId ? `&serviceId=${serviceId}` : ""
+        }`
+      : null,
   );
 
+  // La respuesta del API manda: incluye la duración del servicio y descarta
+  // las franjas que no alcanzan a terminar antes del cierre.
+  const availabilityMatches =
+    Boolean(availability.data) &&
+    availability.data?.date === date &&
+    String(availability.data?.serviceId ?? "") === serviceId;
+
+  const slots = useMemo(() => {
+    if (availabilityMatches && availability.data) {
+      return availability.data.scheduleSlots;
+    }
+    return localSlots;
+  }, [availabilityMatches, availability.data, localSlots]);
+
   const takenSlots = useMemo(() => {
-    if (!availability.data || availability.data.date !== date) return new Set<string>();
+    if (!availabilityMatches || !availability.data) return new Set<string>();
     return new Set(availability.data.slots);
-  }, [availability.data, date]);
+  }, [availabilityMatches, availability.data]);
 
   const selectedService = servicesQuery.data?.services.find(
     (service) => String(service.id) === serviceId,
@@ -509,7 +527,7 @@ export default function BookingPage() {
                 <ArrowLeft className="size-3.5" />
                 Volver al inicio
               </Link>
-              <span>¿Necesitas reprogramar? Escríbenos al {CLINIC.phone}.</span>
+              <span>¿Necesitas cambiar algo? Usa Seguimiento con tu código.</span>
             </div>
           </div>
         </div>
@@ -611,7 +629,11 @@ export default function BookingPage() {
               <Card>
                 <CardHeader
                   title="2. Fecha y hora"
-                  description="Los horarios mostrados ya están disponibles."
+                  description={
+                    selectedService
+                      ? `Tu cita ocupa ${selectedService.durationMin} min seguidos de agenda. Solo mostramos horas con cupo real.`
+                      : "Los horarios mostrados ya están disponibles."
+                  }
                 />
                 <div className="space-y-4 p-5">
                   <div className="flex flex-wrap gap-2">
@@ -1110,8 +1132,8 @@ export default function BookingPage() {
         description={
           <>
             Revisa que todo esté correcto. Después de registrarla recibirás un
-            código de seguimiento; si necesitas cambiar algo, podrás
-            escribirnos por WhatsApp.
+            código de seguimiento; con ese código podrás cancelar o reprogramar
+            la cita sin llamarnos.
           </>
         }
         confirmLabel="Sí, reservar cita"

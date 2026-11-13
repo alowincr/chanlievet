@@ -108,6 +108,12 @@ export function limaTimeLabel(date: Date): string {
   return timeFormatter.format(date);
 }
 
+/** Minutos transcurridos desde la medianoche de Lima (0–1439). */
+export function limaMinutesOfDay(date: Date = new Date()): number {
+  const shifted = new Date(date.getTime() + LIMA_OFFSET_MINUTES * 60_000);
+  return shifted.getUTCHours() * 60 + shifted.getUTCMinutes();
+}
+
 /** Fecha legible (por ejemplo, «viernes, 13 de noviembre»). */
 export function limaDateLabel(date: Date): string {
   return new Intl.DateTimeFormat("es-PE", {

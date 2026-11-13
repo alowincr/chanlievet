@@ -11,6 +11,7 @@ import {
   Play,
   Radio,
   RefreshCw,
+  Siren,
   Stethoscope,
   Timer,
   UserCheck,
@@ -29,6 +30,7 @@ import { useElapsedMinutes } from "@/lib/hooks/use-elapsed-minutes";
 import { getSocket, SOCKET_EVENTS } from "@/lib/socket";
 import {
   SPECIES_LABELS,
+  TRIAGE_LABELS,
   formatDateTime,
   formatTime,
 } from "@/lib/format";
@@ -54,7 +56,20 @@ function InProgressCard({
           photoUrl={appointment.pet.photoUrl}
         />
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-stone-900">{appointment.pet.name}</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="font-semibold text-stone-900">
+              {appointment.pet.name}
+            </p>
+            {appointment.priority === "EMERGENCY" ? (
+              <Badge tone="rose">
+                <Siren className="size-3" />
+                Emergencia
+                {appointment.triageSeverity
+                  ? ` · ${TRIAGE_LABELS[appointment.triageSeverity]}`
+                  : ""}
+              </Badge>
+            ) : null}
+          </div>
           <p className="text-xs text-stone-500">
             {SPECIES_LABELS[appointment.pet.species]}
             {appointment.pet.breed ? ` · ${appointment.pet.breed}` : ""}
@@ -62,6 +77,11 @@ function InProgressCard({
           <p className="mt-1 text-xs text-stone-500">
             {appointment.owner.fullName} · {appointment.service.name}
           </p>
+          {appointment.triageSymptoms ? (
+            <p className="mt-1 text-[11px] leading-relaxed text-rose-700">
+              Triaje: {appointment.triageSymptoms}
+            </p>
+          ) : null}
         </div>
         <Badge tone="violet">
           <Timer className="size-3" />
@@ -190,11 +210,16 @@ export default function VetPanelPage() {
 
   const waiting = all
     .filter((appointment) => appointment.status === "WAITING")
-    .sort(
-      (a, b) =>
+    .sort((a, b) => {
+      // Emergencias primero; dentro de cada prioridad, por hora de llegada.
+      if (a.priority !== b.priority) {
+        return a.priority === "EMERGENCY" ? -1 : 1;
+      }
+      return (
         new Date(a.checkedInAt ?? a.scheduledAt).getTime() -
-        new Date(b.checkedInAt ?? b.scheduledAt).getTime(),
-    );
+        new Date(b.checkedInAt ?? b.scheduledAt).getTime()
+      );
+    });
 
   const inProgress = all.filter(
     (appointment) => appointment.status === "IN_PROGRESS",
@@ -321,9 +346,11 @@ export default function VetPanelPage() {
                 <div
                   key={appointment.id}
                   className={
-                    index === 0
-                      ? "rounded-2xl border border-brand-300 bg-brand-50/40 p-4"
-                      : "rounded-2xl border border-stone-200 bg-white p-4"
+                    appointment.priority === "EMERGENCY"
+                      ? "rounded-2xl border-2 border-rose-300 bg-rose-50/50 p-4"
+                      : index === 0
+                        ? "rounded-2xl border border-brand-300 bg-brand-50/40 p-4"
+                        : "rounded-2xl border border-stone-200 bg-white p-4"
                   }
                 >
                   <div className="flex items-start gap-3">
@@ -345,9 +372,20 @@ export default function VetPanelPage() {
                     />
 
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-stone-900">
-                        {appointment.pet.name}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="font-semibold text-stone-900">
+                          {appointment.pet.name}
+                        </p>
+                        {appointment.priority === "EMERGENCY" ? (
+                          <Badge tone="rose">
+                            <Siren className="size-3" />
+                            Emergencia
+                            {appointment.triageSeverity
+                              ? ` · ${TRIAGE_LABELS[appointment.triageSeverity]}`
+                              : ""}
+                          </Badge>
+                        ) : null}
+                      </div>
                       <p className="text-xs text-stone-500">
                         {SPECIES_LABELS[appointment.pet.species]} ·{" "}
                         {appointment.service.name}
@@ -355,6 +393,11 @@ export default function VetPanelPage() {
                       <p className="mt-1 text-xs text-stone-500">
                         {appointment.owner.fullName} · {appointment.owner.phone}
                       </p>
+                      {appointment.triageSymptoms ? (
+                        <p className="mt-1 text-[11px] leading-relaxed text-rose-700">
+                          Triaje: {appointment.triageSymptoms}
+                        </p>
+                      ) : null}
                       <p className="mt-1 text-[11px] text-stone-400">
                         Cita {formatTime(appointment.scheduledAt)} · Llegó{" "}
                         {appointment.checkedInAt

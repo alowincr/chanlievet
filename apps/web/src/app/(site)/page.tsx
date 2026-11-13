@@ -9,9 +9,11 @@ import {
   MessageCircle,
   PawPrint,
   ShieldCheck,
+  Siren,
   Sparkles,
   Stethoscope,
   Ticket,
+  TriangleAlert,
   Wifi,
 } from "lucide-react";
 import { QueueTeaser } from "@/components/home/queue-teaser";
@@ -175,6 +177,29 @@ export default function HomePage() {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* Emergencias */}
+      <section className="border-b-2 border-forest-900/10 bg-rose-50/70">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-rose-100 text-rose-600">
+              <Siren className="size-5" />
+            </span>
+            <div>
+              <p className="text-sm font-bold text-stone-900">
+                ¿Tu mascota tiene una urgencia?
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-stone-600">
+                Haz un triaje rápido y pasa al frente de la cola de atención.
+              </p>
+            </div>
+          </div>
+          <ButtonLink href="/emergencia" variant="danger" size="sm">
+            <TriangleAlert className="size-4" />
+            Triaje de emergencia
+          </ButtonLink>
         </div>
       </section>
 

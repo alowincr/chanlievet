@@ -527,6 +527,20 @@ async function main(): Promise<void> {
         reason: "Refuerzo de vacuna triple felina",
       },
       {
+        code: "CV-1E4M7R",
+        ownerId: jose.id,
+        petId: rocky.id,
+        serviceId: serviceId("emergencia"),
+        status: "WAITING",
+        priority: "EMERGENCY",
+        triageSeverity: "URGENT",
+        triageSymptoms:
+          "Dificultad para respirar y decaimiento desde hace una hora.",
+        scheduledAt: addMinutes(now, -2),
+        checkedInAt: addMinutes(now, -3),
+        reason: "Emergencia: dificultad para respirar",
+      },
+      {
         code: "CV-9X3R6C",
         ownerId: ana.id,
         petId: luna.id,

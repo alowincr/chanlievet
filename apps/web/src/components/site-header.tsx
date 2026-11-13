@@ -27,7 +27,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between gap-3 px-4">
         <Logo />
 
-        <nav className="hidden items-center gap-1 lg:flex">
+        <nav className="hidden items-center gap-1 xl:flex">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
@@ -69,7 +69,7 @@ export function SiteHeader() {
           <button
             type="button"
             onClick={() => setOpen((current) => !current)}
-            className="inline-flex size-10 items-center justify-center rounded-full border-2 border-forest-900/10 bg-white text-stone-700 hover:border-brand-600/40 lg:hidden"
+            className="inline-flex size-10 items-center justify-center rounded-full border-2 border-forest-900/10 bg-white text-stone-700 hover:border-brand-600/40 xl:hidden"
             aria-label={open ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={open}
           >
@@ -79,7 +79,7 @@ export function SiteHeader() {
       </div>
 
       {open ? (
-        <div className="border-t-2 border-forest-900/10 bg-cream-50 px-4 pb-4 pt-2 lg:hidden">
+        <div className="border-t-2 border-forest-900/10 bg-cream-50 px-4 pb-4 pt-2 xl:hidden">
           <nav className="grid gap-1">
             {NAV_LINKS.map((link) => (
               <Link

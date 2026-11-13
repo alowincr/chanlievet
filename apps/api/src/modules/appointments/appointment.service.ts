@@ -1,10 +1,19 @@
 import { randomInt } from "node:crypto";
+import { env } from "../../config/env";
 import type { Prisma } from "../../generated/prisma/client";
 import type { AuthUser } from "../../lib/jwt";
 import { prisma } from "../../lib/prisma";
 import {
+  buildScheduleSlots,
+  formatMinuteOfDay,
+  isBookableStart,
+  isClinicOpenAt,
+  minuteOfDay,
+} from "../../lib/schedule";
+import {
   CHECK_IN_LEAD_MINUTES,
   isSameLimaDay,
+  limaDateKey,
   limaDateLabel,
   limaDayRange,
   limaDayRangeFromKey,
@@ -12,15 +21,28 @@ import {
 } from "../../lib/time";
 import { HttpError } from "../../middleware/errors";
 import { emitAppointmentUpdate } from "../../realtime/socket";
-import type { AppointmentDTO, AppointmentStatusValue } from "../../types/dto";
+import type {
+  AppointmentDTO,
+  AppointmentStatusValue,
+  AvailabilityDTO,
+} from "../../types/dto";
 import {
   appointmentInclude,
   toAppointmentDTO,
   type AppointmentWithRelations,
 } from "./appointment.mapper";
+import {
+  buildCapacitySlots,
+  countOverlapping,
+  slotFullMessage,
+  type CapacityBooking,
+} from "./appointment.capacity";
 import type {
+  AppointmentActionAuthInput,
   CreateAppointmentInput,
+  CreateEmergencyInput,
   ListAppointmentsQuery,
+  RescheduleAppointmentInput,
   UpdateAppointmentStatusInput,
 } from "./appointment.schema";
 import { broadcastQueue, getQueuePositionFor } from "../queue/queue.service";
@@ -56,6 +78,96 @@ const STATUS_LABELS: Record<AppointmentStatusValue, string> = {
   NO_SHOW: "No asistió",
 };
 
+/** Estados que ocupan agenda y bloquean la misma franja. */
+const ACTIVE_STATUSES: AppointmentStatusValue[] = [
+  "PENDING",
+  "CONFIRMED",
+  "WAITING",
+  "IN_PROGRESS",
+];
+
+type AppointmentReader = Pick<Prisma.TransactionClient, "appointment">;
+
+/** Citas activas del día con la duración real de su servicio. */
+async function bookingsForDay(
+  db: AppointmentReader,
+  dateKey: string,
+  excludeId?: number,
+): Promise<CapacityBooking[]> {
+  const { start, end } = limaDayRangeFromKey(dateKey);
+
+  const rows = await db.appointment.findMany({
+    where: {
+      scheduledAt: { gte: start, lt: end },
+      status: { in: ACTIVE_STATUSES },
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: {
+      scheduledAt: true,
+      service: { select: { durationMin: true } },
+    },
+  });
+
+  return rows.map((row) => ({
+    scheduledAt: row.scheduledAt,
+    durationMin: row.service.durationMin,
+  }));
+}
+
+/**
+ * Valida que la cita empiece en una franja válida y que quede cupo.
+ * Debe ejecutarse dentro de la transacción que tomó el advisory lock del día.
+ */
+async function assertSlotAvailable(
+  db: AppointmentReader,
+  dateKey: string,
+  scheduledAt: Date,
+  durationMin: number,
+  excludeId?: number,
+): Promise<void> {
+  if (!isBookableStart(scheduledAt, durationMin)) {
+    throw new HttpError(
+      400,
+      "Elige una hora dentro del horario de atención y que alcance a terminar antes del cierre.",
+    );
+  }
+
+  const bookings = await bookingsForDay(db, dateKey, excludeId);
+  const used = countOverlapping(
+    bookings,
+    dateKey,
+    minuteOfDay(dateKey, scheduledAt),
+    durationMin,
+  );
+
+  if (used >= env.SLOT_CAPACITY) {
+    throw new HttpError(
+      409,
+      slotFullMessage(limaTimeLabel(scheduledAt), durationMin),
+    );
+  }
+}
+
+/** Verifica la identidad del dueño por celular o DNI. */
+function assertOwnerMatches(
+  appointment: AppointmentWithRelations,
+  input: AppointmentActionAuthInput,
+): void {
+  const phoneMatches = Boolean(
+    input.phone && appointment.owner.phone === input.phone,
+  );
+  const documentMatches = Boolean(
+    input.documentId && appointment.owner.documentId === input.documentId,
+  );
+
+  if (!phoneMatches && !documentMatches) {
+    throw new HttpError(
+      403,
+      "Los datos no coinciden con la reserva. Revisa el celular o el DNI usado al agendar.",
+    );
+  }
+}
+
 async function generateUniqueCode(tx: Prisma.TransactionClient): Promise<string> {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     let suffix = "";
@@ -82,6 +194,7 @@ function appointmentUpdateEvent(appointment: AppointmentWithRelations, position:
   return {
     code: appointment.code,
     status: appointment.status,
+    priority: appointment.priority,
     queuePosition: position,
     updatedAt: new Date().toISOString(),
   };
@@ -96,20 +209,28 @@ export async function createAppointment(
 ): Promise<AppointmentDTO> {
   const service = await prisma.service.findFirst({
     where: { id: input.serviceId, active: true },
-    select: { id: true },
+    select: { id: true, durationMin: true },
   });
 
   if (!service) {
     throw new HttpError(404, "El servicio seleccionado no está disponible");
   }
 
+  const dateKey = limaDateKey(input.scheduledAt);
+
   const appointment = await prisma.$transaction(async (tx) => {
-    // Serializa las reservas concurrentes del mismo celular + horario. Sin
-    // este candado, dos clics simultáneos podrían pasar el chequeo de
-    // duplicados antes de que cualquiera de las dos transacciones confirme.
-    // El lock se libera automáticamente al terminar la transacción.
-    const lockKey = `appointment:${input.owner.phone}:${input.scheduledAt.toISOString()}`;
+    // Serializa todas las reservas del mismo día. Así dos clientes distintos
+    // no pueden ver el mismo cupo libre y confirmar a la vez. El lock se
+    // libera automáticamente al terminar la transacción.
+    const lockKey = `appointment-day:${dateKey}`;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+    await assertSlotAvailable(
+      tx,
+      dateKey,
+      input.scheduledAt,
+      service.durationMin,
+    );
 
     // El dueño se identifica por teléfono: si ya existe, reutilizamos su ficha.
     const owner = await tx.owner.upsert({
@@ -366,6 +487,20 @@ export async function updateAppointmentStatus(
     data.finishedAt = new Date();
   }
 
+  if (input.status === "CANCELLED") {
+    data.cancelledAt = new Date();
+  }
+
+  if (
+    input.status === "CONFIRMED" &&
+    (appointment.status === "CANCELLED" || appointment.status === "NO_SHOW")
+  ) {
+    data.cancelledAt = null;
+    data.checkedInAt = null;
+    data.startedAt = null;
+    data.finishedAt = null;
+  }
+
   const updated = await prisma.appointment.update({
     where: { id },
     data,
@@ -379,32 +514,276 @@ export async function updateAppointmentStatus(
   return toAppointmentDTO(updated, position);
 }
 
-const ACTIVE_STATUSES: AppointmentStatusValue[] = [
-  "PENDING",
-  "CONFIRMED",
-  "WAITING",
-  "IN_PROGRESS",
-];
-
-/** Horarios ya ocupados para un día de Lima (para deshabilitarlos al reservar). */
+/**
+ * Disponibilidad de un día de Lima para un servicio concreto.
+ *
+ * Devuelve las franjas que alcanzan a terminar antes del cierre, cuáles ya
+ * están llenas y cuántas citas se solapan con cada una. La duración real del
+ * servicio evita vender dos veces el mismo tramo de agenda.
+ */
 export async function getAvailability(
   dateKey: string,
-): Promise<{ date: string; slots: string[] }> {
-  const { start, end } = limaDayRangeFromKey(dateKey);
+  serviceId?: number,
+): Promise<AvailabilityDTO> {
+  let durationMin = 30;
 
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      scheduledAt: { gte: start, lt: end },
-      status: { in: ACTIVE_STATUSES },
-    },
-    select: { scheduledAt: true },
+  if (serviceId) {
+    const service = await prisma.service.findFirst({
+      where: { id: serviceId, active: true },
+      select: { durationMin: true },
+    });
+
+    if (!service) {
+      throw new HttpError(404, "El servicio seleccionado no está disponible");
+    }
+
+    durationMin = service.durationMin;
+  }
+
+  const [bookings, scheduleSlots] = await Promise.all([
+    bookingsForDay(prisma, dateKey),
+    Promise.resolve(buildScheduleSlots(dateKey, durationMin)),
+  ]);
+
+  const capacity = env.SLOT_CAPACITY;
+  const computed = buildCapacitySlots(
+    scheduleSlots,
+    bookings,
+    dateKey,
+    durationMin,
+    capacity,
+  );
+
+  return {
+    date: dateKey,
+    capacity,
+    durationMin,
+    serviceId: serviceId ?? null,
+    slots: computed.filter((slot) => !slot.available).map((slot) => slot.time),
+    availableSlots: computed
+      .filter((slot) => slot.available)
+      .map((slot) => slot.time),
+    scheduleSlots,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Acciones públicas sobre una cita: cancelar y reprogramar
+// ---------------------------------------------------------------------------
+
+async function findAppointmentForOwner(code: string): Promise<AppointmentWithRelations> {
+  const appointment = await prisma.appointment.findUnique({
+    where: { code: code.trim().toUpperCase() },
+    include: appointmentInclude,
   });
 
-  const slots = Array.from(
-    new Set(appointments.map((appointment) => limaTimeLabel(appointment.scheduledAt))),
-  ).sort();
+  if (!appointment) {
+    throw new HttpError(404, "No encontramos una cita con ese código de seguimiento");
+  }
 
-  return { date: dateKey, slots };
+  return appointment;
+}
+
+/** El cliente cancela su propia cita desde el seguimiento. */
+export async function cancelAppointmentByCode(
+  code: string,
+  input: AppointmentActionAuthInput,
+): Promise<AppointmentDTO> {
+  const appointment = await findAppointmentForOwner(code);
+  assertOwnerMatches(appointment, input);
+
+  if (appointment.status === "CANCELLED") {
+    const position = await getQueuePositionFor(appointment);
+    return toAppointmentDTO(appointment, position);
+  }
+
+  if (
+    appointment.status !== "PENDING" &&
+    appointment.status !== "CONFIRMED" &&
+    appointment.status !== "WAITING"
+  ) {
+    throw new HttpError(
+      409,
+      `La cita está "${STATUS_LABELS[appointment.status]}" y ya no se puede cancelar desde aquí. Escríbenos por WhatsApp.`,
+    );
+  }
+
+  const cancelled = await prisma.appointment.update({
+    where: { id: appointment.id },
+    data: { status: "CANCELLED", cancelledAt: new Date() },
+    include: appointmentInclude,
+  });
+
+  await broadcastQueue();
+  emitAppointmentUpdate(appointmentUpdateEvent(cancelled, null));
+
+  return toAppointmentDTO(cancelled, null);
+}
+
+/**
+ * El cliente mueve su cita a otra fecha/hora conservando servicio y mascota.
+ * La cita vuelve a "Registrada" para que recepción la confirme de nuevo.
+ */
+export async function rescheduleAppointmentByCode(
+  code: string,
+  input: RescheduleAppointmentInput,
+): Promise<AppointmentDTO> {
+  const appointment = await findAppointmentForOwner(code);
+  assertOwnerMatches(appointment, input);
+
+  if (
+    appointment.status === "IN_PROGRESS" ||
+    appointment.status === "COMPLETED"
+  ) {
+    throw new HttpError(
+      409,
+      `La cita está "${STATUS_LABELS[appointment.status]}" y ya no se puede reprogramar. Escríbenos por WhatsApp.`,
+    );
+  }
+
+  const dateKey = limaDateKey(input.scheduledAt);
+  const durationMin = appointment.service.durationMin;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    // Mismo advisory lock que usa la reserva: evita que dos reprogramaciones
+    // simultáneas ocupen la última franja del día.
+    const lockKey = `appointment-day:${dateKey}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+    await assertSlotAvailable(
+      tx,
+      dateKey,
+      input.scheduledAt,
+      durationMin,
+      appointment.id,
+    );
+
+    return tx.appointment.update({
+      where: { id: appointment.id },
+      data: {
+        scheduledAt: input.scheduledAt,
+        status: "PENDING",
+        checkedInAt: null,
+        startedAt: null,
+        finishedAt: null,
+        cancelledAt: null,
+      },
+      include: appointmentInclude,
+    });
+  });
+
+  await broadcastQueue();
+  emitAppointmentUpdate(appointmentUpdateEvent(updated, null));
+
+  return toAppointmentDTO(updated, null);
+}
+
+// ---------------------------------------------------------------------------
+// Emergencias con triaje
+// ---------------------------------------------------------------------------
+
+/**
+ * Registra una emergencia y la coloca directamente en la cola prioritaria.
+ *
+ * No pasa por confirmación ni por el cupo normal de la agenda: una urgencia
+ * no puede esperar a que recepción la apruebe. Solo se acepta dentro del
+ * horario de atención; fuera de horario la web muestra los teléfonos.
+ */
+export async function createEmergencyAppointment(
+  input: CreateEmergencyInput,
+): Promise<AppointmentDTO> {
+  const now = new Date();
+
+  if (!isClinicOpenAt(now)) {
+    throw new HttpError(
+      409,
+      "La clínica está cerrada en este momento. Llámanos al +51 987 654 321 para orientarte.",
+    );
+  }
+
+  const service = await prisma.service.findFirst({
+    where: {
+      active: true,
+      OR: [
+        { slug: "emergencia" },
+        { name: { contains: "Emergencia", mode: "insensitive" } },
+      ],
+    },
+    orderBy: { id: "asc" },
+    select: { id: true },
+  });
+
+  if (!service) {
+    throw new HttpError(
+      503,
+      "El servicio de emergencia no está configurado. Llámanos al +51 987 654 321.",
+    );
+  }
+
+  const appointment = await prisma.$transaction(async (tx) => {
+    const owner = await tx.owner.upsert({
+      where: { phone: input.owner.phone },
+      update: {
+        fullName: input.owner.fullName,
+        documentId: input.owner.documentId,
+      },
+      create: {
+        fullName: input.owner.fullName,
+        phone: input.owner.phone,
+        documentId: input.owner.documentId,
+      },
+    });
+
+    const existingPet = await tx.pet.findFirst({
+      where: {
+        ownerId: owner.id,
+        name: { equals: input.pet.name, mode: "insensitive" },
+      },
+    });
+
+    const pet = existingPet
+      ? await tx.pet.update({
+          where: { id: existingPet.id },
+          data: {
+            species: input.pet.species,
+            breed: input.pet.breed ?? existingPet.breed,
+          },
+        })
+      : await tx.pet.create({
+          data: {
+            ownerId: owner.id,
+            name: input.pet.name,
+            species: input.pet.species,
+            breed: input.pet.breed ?? null,
+          },
+        });
+
+    const code = await generateUniqueCode(tx);
+
+    return tx.appointment.create({
+      data: {
+        code,
+        ownerId: owner.id,
+        petId: pet.id,
+        serviceId: service.id,
+        scheduledAt: now,
+        status: "WAITING",
+        priority: "EMERGENCY",
+        triageSeverity: input.severity,
+        triageSymptoms: input.symptoms,
+        reason: `Emergencia: ${input.symptoms.slice(0, 160)}`,
+        notes: input.notes ?? null,
+        checkedInAt: now,
+      },
+      include: appointmentInclude,
+    });
+  });
+
+  const position = await getQueuePositionFor(appointment);
+  await broadcastQueue();
+  emitAppointmentUpdate(appointmentUpdateEvent(appointment, position));
+
+  return toAppointmentDTO(appointment, position);
 }
 
 /**

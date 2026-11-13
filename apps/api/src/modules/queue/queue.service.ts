@@ -28,6 +28,9 @@ function toQueuePatient(
   return {
     appointmentId: dto.id,
     status: appointment.status === "IN_PROGRESS" ? "IN_PROGRESS" : "WAITING",
+    priority: appointment.priority,
+    triageSeverity: appointment.triageSeverity,
+    triageSymptoms: viewer === "staff" ? appointment.triageSymptoms : null,
     position,
     scheduledAt: dto.scheduledAt,
     checkedInAt: dto.checkedInAt,
@@ -70,7 +73,12 @@ export async function getQueueSnapshot(
     prisma.appointment.findMany({
       where: { status: "WAITING", scheduledAt: today },
       include: appointmentInclude,
-      orderBy: [{ checkedInAt: "asc" }, { scheduledAt: "asc" }],
+      // Las emergencias van primero; dentro de cada prioridad, por llegada.
+      orderBy: [
+        { priority: "desc" },
+        { checkedInAt: "asc" },
+        { scheduledAt: "asc" },
+      ],
     }),
     prisma.appointment.findMany({
       where: { status: "IN_PROGRESS", scheduledAt: today },
@@ -114,20 +122,20 @@ export async function getQueuePositionFor(
     return null;
   }
 
-  const checkedInAt = appointment.checkedInAt;
-
-  const ahead = await prisma.appointment.count({
-    where: {
-      status: "WAITING",
-      scheduledAt: { gte: start, lt: end },
-      OR: [
-        { checkedInAt: { lt: checkedInAt } },
-        { checkedInAt, id: { lt: appointment.id } },
-      ],
-    },
+  // Se ordena igual que el snapshot: emergencia primero y luego por llegada.
+  // Así la posición que ve el cliente coincide con la fila real.
+  const waiting = await prisma.appointment.findMany({
+    where: { status: "WAITING", scheduledAt: { gte: start, lt: end } },
+    orderBy: [
+      { priority: "desc" },
+      { checkedInAt: "asc" },
+      { id: "asc" },
+    ],
+    select: { id: true },
   });
 
-  return ahead + 1;
+  const index = waiting.findIndex((item) => item.id === appointment.id);
+  return index === -1 ? null : index + 1;
 }
 
 /** Recalcula la cola y la emite a todas las pantallas públicas conectadas. */

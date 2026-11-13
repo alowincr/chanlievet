@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, PawPrint, Radio, WifiOff } from "lucide-react";
+import { Clock, PawPrint, Radio, TriangleAlert, WifiOff } from "lucide-react";
 import { PetAvatar, StaffAvatar } from "@/components/placeholders";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useElapsedMinutes } from "@/lib/hooks/use-elapsed-minutes";
-import { SPECIES_LABELS, formatRelative, formatTime } from "@/lib/format";
+import {
+  SPECIES_LABELS,
+  TRIAGE_LABELS,
+  formatRelative,
+  formatTime,
+} from "@/lib/format";
 import type { QueuePatient, QueueSnapshot } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
@@ -50,6 +55,15 @@ function InProgressCard({
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-semibold text-stone-900">{patient.pet.name}</p>
           <Badge tone="violet">En atención</Badge>
+          {patient.priority === "EMERGENCY" ? (
+            <Badge tone="rose">
+              <TriangleAlert className="size-3" />
+              Emergencia
+              {patient.triageSeverity
+                ? ` · ${TRIAGE_LABELS[patient.triageSeverity]}`
+                : ""}
+            </Badge>
+          ) : null}
         </div>
         <p className="mt-0.5 text-xs text-stone-500">
           {SPECIES_LABELS[patient.pet.species]} ·{" "}
@@ -58,6 +72,11 @@ function InProgressCard({
             : partialName(patient.owner.fullName)}{" "}
           · {patient.service.name}
         </p>
+        {staffView && patient.triageSymptoms ? (
+          <p className="mt-1 text-[11px] leading-relaxed text-rose-700">
+            Triaje: {patient.triageSymptoms}
+          </p>
+        ) : null}
 
         <div className="mt-3 flex items-center gap-2">
           <StaffAvatar
@@ -88,19 +107,27 @@ function WaitingRow({
   isNext: boolean;
   staffView: boolean;
 }) {
+  const isEmergency = patient.priority === "EMERGENCY";
+
   return (
     <li
       className={cn(
         "flex items-center gap-3 rounded-2xl border bg-white px-4 py-3 transition-colors",
-        isNext
-          ? "border-brand-300 bg-brand-50/40 shadow-sm shadow-brand-900/5"
-          : "border-stone-200",
+        isEmergency
+          ? "border-rose-300 bg-rose-50/60 shadow-sm shadow-rose-900/5"
+          : isNext
+            ? "border-brand-300 bg-brand-50/40 shadow-sm shadow-brand-900/5"
+            : "border-stone-200",
       )}
     >
       <span
         className={cn(
           "grid size-9 shrink-0 place-items-center rounded-full text-sm font-bold",
-          isNext ? "bg-brand-600 text-white" : "bg-stone-100 text-stone-500",
+          isEmergency
+            ? "bg-rose-600 text-white"
+            : isNext
+              ? "bg-brand-600 text-white"
+              : "bg-stone-100 text-stone-500",
         )}
       >
         {patient.position ?? "—"}
@@ -118,7 +145,17 @@ function WaitingRow({
           <p className="truncate text-sm font-semibold text-stone-900">
             {patient.pet.name}
           </p>
-          {isNext ? <Badge tone="brand">Siguiente</Badge> : null}
+          {isEmergency ? (
+            <Badge tone="rose">
+              <TriangleAlert className="size-3" />
+              Emergencia
+              {patient.triageSeverity
+                ? ` · ${TRIAGE_LABELS[patient.triageSeverity]}`
+                : ""}
+            </Badge>
+          ) : isNext ? (
+            <Badge tone="brand">Siguiente</Badge>
+          ) : null}
         </div>
         <p className="truncate text-[11px] text-stone-500">
           {SPECIES_LABELS[patient.pet.species]} ·{" "}
@@ -127,6 +164,11 @@ function WaitingRow({
             : partialName(patient.owner.fullName)}{" "}
           · {patient.service.name}
         </p>
+        {staffView && patient.triageSymptoms ? (
+          <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-rose-700">
+            Triaje: {patient.triageSymptoms}
+          </p>
+        ) : null}
       </div>
 
       <div className="shrink-0 text-right">
@@ -303,7 +345,8 @@ export function QueueBoard({
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-500">
         <span className="inline-flex items-center gap-1.5">
           <Radio className="size-3.5 text-brand-600" />
-          Solo mostramos las citas de hoy.{" "}
+          Solo mostramos las citas de hoy. Las emergencias triadas pasan al
+          frente de la fila.{" "}
           {staffView
             ? "Vista de personal: nombres completos."
             : "Los nombres son parciales por privacidad."}

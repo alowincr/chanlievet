@@ -13,6 +13,12 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default("12h"),
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
   LOW_STOCK_THRESHOLD: z.coerce.number().int().nonnegative().default(5),
+  /**
+   * Citas simultáneas permitidas en una misma franja de 30 minutos.
+   * Con 1 (por defecto) cada horario atiende a un solo paciente a la vez,
+   * considerando la duración real del servicio.
+   */
+  SLOT_CAPACITY: z.coerce.number().int().positive().default(1),
 });
 
 const parsed = envSchema.safeParse(process.env);

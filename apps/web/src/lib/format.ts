@@ -1,4 +1,9 @@
-import type { AppointmentStatus, ProductAudience, Species } from "./types";
+import type {
+  AppointmentStatus,
+  ProductAudience,
+  Species,
+  TriageSeverity,
+} from "./types";
 
 const currencyFormatter = new Intl.NumberFormat("es-PE", {
   style: "currency",
@@ -70,6 +75,18 @@ export const SPECIES_LABELS: Record<Species, string> = {
   DOG: "Perro",
   CAT: "Gato",
   OTHER: "Otra mascota",
+};
+
+export const TRIAGE_LABELS: Record<TriageSeverity, string> = {
+  CRITICAL: "Crítico",
+  URGENT: "Urgente",
+  MODERATE: "Moderado",
+};
+
+export const TRIAGE_DESCRIPTIONS: Record<TriageSeverity, string> = {
+  CRITICAL: "Dificultad para respirar, convulsiones, sangrado abundante o accidente grave.",
+  URGENT: "Dolor intenso, vómitos persistentes, golpe o deterioro rápido.",
+  MODERATE: "Síntomas que requieren evaluación pronto, sin riesgo inmediato evidente.",
 };
 
 export const AUDIENCE_LABELS: Record<ProductAudience, string> = {

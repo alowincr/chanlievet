@@ -20,4 +20,5 @@ export const NAV_LINKS = [
   { href: "/citas", label: "Agendar cita" },
   { href: "/sala-espera", label: "Sala de espera" },
   { href: "/seguimiento", label: "Seguimiento" },
+  { href: "/emergencia", label: "Emergencia" },
 ] as const;

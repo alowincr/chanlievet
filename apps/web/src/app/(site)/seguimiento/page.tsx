@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
+  CalendarClock,
   CalendarDays,
   Check,
   ClipboardList,
@@ -16,6 +17,7 @@ import {
   Search,
   Stethoscope,
   Ticket,
+  XCircle,
 } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -29,16 +31,22 @@ import { PetAvatar } from "@/components/placeholders";
 import { StatusBadge } from "@/components/status-badge";
 import { ApiError, apiFetch, describeApiError } from "@/lib/api";
 import { useAppointmentWatch } from "@/lib/hooks/use-appointment-watch";
+import { useApiQuery } from "@/lib/hooks/use-api-query";
 import { CLINIC } from "@/lib/clinic";
 import {
   SPECIES_LABELS,
   STATUS_LABELS,
+  TRIAGE_LABELS,
   formatCurrency,
   formatDate,
   formatDateTime,
   formatTime,
 } from "@/lib/format";
-import type { Appointment, AppointmentStatus } from "@/lib/types";
+import type {
+  Appointment,
+  AppointmentStatus,
+  Availability,
+} from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 const STEPS: Array<{
@@ -61,6 +69,26 @@ const STATUS_INDEX: Partial<Record<AppointmentStatus, number>> = {
   COMPLETED: 4,
 };
 
+// Lima no tiene horario de verano: siempre UTC-5.
+const LIMA_OFFSET_MS = 5 * 60 * 60 * 1000;
+const LIMA_OFFSET_SUFFIX = "-05:00";
+
+function pad(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+/** Fecha `YYYY-MM-DD` en el calendario de Lima. */
+function limaDateKey(date: Date = new Date()): string {
+  const shifted = new Date(date.getTime() - LIMA_OFFSET_MS);
+  return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(
+    shifted.getUTCDate(),
+  )}`;
+}
+
+function tomorrowValue(): string {
+  return limaDateKey(new Date(Date.now() + 24 * 60 * 60 * 1000));
+}
+
 export default function TrackingPage() {
   const [codeInput, setCodeInput] = useState("");
   const [activeCode, setActiveCode] = useState<string | null>(null);
@@ -70,6 +98,19 @@ export default function TrackingPage() {
   const [checkingIn, setCheckingIn] = useState(false);
   const [confirmCheckIn, setConfirmCheckIn] = useState(false);
   const [liveNotice, setLiveNotice] = useState(false);
+
+  // Autoservicio: cancelar o reprogramar con el código de la cita.
+  const [manageMode, setManageMode] = useState<"cancel" | "reschedule" | null>(
+    null,
+  );
+  const [managePhone, setManagePhone] = useState("");
+  const [manageDocumentId, setManageDocumentId] = useState("");
+  const [manageBusy, setManageBusy] = useState(false);
+  const [manageError, setManageError] = useState<string | null>(null);
+  const [manageMessage, setManageMessage] = useState<string | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [newDate, setNewDate] = useState("");
+  const [newTime, setNewTime] = useState("");
 
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [recoveryPhone, setRecoveryPhone] = useState("");
@@ -126,11 +167,30 @@ export default function TrackingPage() {
 
   useAppointmentWatch(activeCode, handleUpdate);
 
+  const availability = useApiQuery<Availability>(
+    manageMode === "reschedule" && appointment && newDate
+      ? `/api/appointments/availability?date=${newDate}&serviceId=${appointment.service.id}`
+      : null,
+  );
+
   useEffect(() => {
     if (!liveNotice) return;
     const timeout = window.setTimeout(() => setLiveNotice(false), 5000);
     return () => window.clearTimeout(timeout);
   }, [liveNotice]);
+
+  useEffect(() => {
+    if (!manageMessage) return;
+    const timeout = window.setTimeout(() => setManageMessage(null), 8000);
+    return () => window.clearTimeout(timeout);
+  }, [manageMessage]);
+
+  useEffect(() => {
+    if (!newTime || !availability.data) return;
+    if (!availability.data.availableSlots.includes(newTime)) {
+      setNewTime("");
+    }
+  }, [availability.data, newTime]);
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -184,11 +244,109 @@ export default function TrackingPage() {
     }
   }
 
+  function openManage(mode: "cancel" | "reschedule") {
+    setManageMode(mode);
+    setManageError(null);
+    setManageMessage(null);
+
+    if (mode === "reschedule" && !newDate) {
+      setNewDate(tomorrowValue());
+    }
+  }
+
+  function closeManage() {
+    setManageMode(null);
+    setManageError(null);
+    setNewTime("");
+  }
+
+  function verificationBody() {
+    return {
+      phone: managePhone || undefined,
+      documentId: manageDocumentId || undefined,
+    };
+  }
+
+  async function handleCancel() {
+    if (!appointment) return;
+    setManageBusy(true);
+    setManageError(null);
+
+    try {
+      const response = await apiFetch<{ appointment: Appointment }>(
+        `/api/appointments/track/${encodeURIComponent(appointment.code)}/cancel`,
+        { method: "POST", auth: false, body: verificationBody() },
+      );
+      setAppointment(response.appointment);
+      setConfirmCancel(false);
+      setManageMode(null);
+      setManageMessage(
+        `La cita ${response.appointment.code} quedó cancelada. Puedes agendar otra cuando quieras.`,
+      );
+    } catch (caught) {
+      setConfirmCancel(false);
+      setManageError(describeApiError(caught));
+    } finally {
+      setManageBusy(false);
+    }
+  }
+
+  async function handleReschedule() {
+    if (!appointment) return;
+    setManageError(null);
+
+    if (!managePhone && !manageDocumentId) {
+      setManageError("Ingresa el celular o el DNI usado al reservar.");
+      return;
+    }
+
+    if (!newDate || !newTime) {
+      setManageError("Elige la nueva fecha y hora para tu cita.");
+      return;
+    }
+
+    setManageBusy(true);
+
+    try {
+      const scheduledAt = new Date(
+        `${newDate}T${newTime}:00${LIMA_OFFSET_SUFFIX}`,
+      ).toISOString();
+
+      const response = await apiFetch<{ appointment: Appointment }>(
+        `/api/appointments/track/${encodeURIComponent(appointment.code)}/reschedule`,
+        {
+          method: "POST",
+          auth: false,
+          body: { ...verificationBody(), scheduledAt },
+        },
+      );
+      setAppointment(response.appointment);
+      setManageMode(null);
+      setNewTime("");
+      setManageMessage(
+        `Tu cita fue reprogramada para el ${formatDate(
+          response.appointment.scheduledAt,
+        )} a las ${formatTime(response.appointment.scheduledAt)}. Recepción la confirmará de nuevo.`,
+      );
+    } catch (caught) {
+      setManageError(describeApiError(caught));
+      availability.refetch();
+    } finally {
+      setManageBusy(false);
+    }
+  }
+
   const currentIndex = appointment
     ? (STATUS_INDEX[appointment.status] ?? -1)
     : -1;
   const isClosed =
     appointment?.status === "CANCELLED" || appointment?.status === "NO_SHOW";
+  const canManage =
+    appointment?.status === "PENDING" ||
+    appointment?.status === "CONFIRMED" ||
+    appointment?.status === "WAITING";
+  const todayKey = limaDateKey();
+  const takenRescheduleSlots = new Set(availability.data?.slots ?? []);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:py-14">
@@ -384,6 +542,9 @@ export default function TrackingPage() {
                     {appointment.pet.name}
                   </h2>
                   <StatusBadge status={appointment.status} />
+                  {appointment.priority === "EMERGENCY" ? (
+                    <Badge tone="rose">Emergencia</Badge>
+                  ) : null}
                 </div>
                 <p className="mt-0.5 text-sm text-stone-500">
                   {SPECIES_LABELS[appointment.pet.species]}
@@ -447,6 +608,16 @@ export default function TrackingPage() {
               </div>
             )}
           </Card>
+
+          {appointment.priority === "EMERGENCY" ? (
+            <Alert variant="error" title="Atención prioritaria por emergencia">
+              {appointment.triageSeverity
+                ? `Triaje ${TRIAGE_LABELS[appointment.triageSeverity].toLowerCase()}. `
+                : ""}
+              {appointment.triageSymptoms ??
+                "Tu mascota pasa al frente de la cola de atención."}
+            </Alert>
+          ) : null}
 
           {appointment.status === "WAITING" ? (
             <div className="flex flex-wrap items-center gap-5 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-6 text-white shadow-lg shadow-brand-900/15">
@@ -527,6 +698,203 @@ export default function TrackingPage() {
                       </>
                     )}
                   </Alert>
+                )}
+              </div>
+            </Card>
+          ) : null}
+
+          {manageMessage ? <Alert variant="success">{manageMessage}</Alert> : null}
+
+          {canManage ? (
+            <Card>
+              <CardHeader
+                title="Gestionar mi cita"
+                description="Puedes cancelar o mover la cita sin llamar a recepción."
+              />
+              <div className="space-y-4 p-5">
+                {manageMode === null ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => openManage("reschedule")}
+                    >
+                      <CalendarClock className="size-4" />
+                      Reprogramar
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onClick={() => openManage("cancel")}
+                    >
+                      <XCircle className="size-4" />
+                      Cancelar cita
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-stone-800">
+                        {manageMode === "cancel"
+                          ? "Cancelar la cita"
+                          : "Elegir nueva fecha y hora"}
+                      </p>
+                      <Button variant="ghost" size="sm" onClick={closeManage}>
+                        Volver
+                      </Button>
+                    </div>
+
+                    <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
+                      <p className="text-xs font-medium text-stone-700">
+                        Confirma tu identidad
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-stone-500">
+                        Ingresa el celular o el DNI con el que reservaste.
+                      </p>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <Input
+                          type="tel"
+                          value={managePhone}
+                          onChange={(event) =>
+                            setManagePhone(
+                              event.target.value
+                                .replace(/\D/g, "")
+                                .slice(0, 9),
+                            )
+                          }
+                          placeholder="Celular (9 dígitos)"
+                          inputMode="numeric"
+                          aria-label="Celular usado al reservar"
+                        />
+                        <Input
+                          value={manageDocumentId}
+                          onChange={(event) =>
+                            setManageDocumentId(
+                              event.target.value
+                                .replace(/\D/g, "")
+                                .slice(0, 8),
+                            )
+                          }
+                          placeholder="DNI (8 dígitos)"
+                          inputMode="numeric"
+                          aria-label="DNI usado al reservar"
+                        />
+                      </div>
+                    </div>
+
+                    {manageMode === "reschedule" ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label
+                            htmlFor="reschedule-date"
+                            className="mb-1 block text-xs font-medium text-stone-700"
+                          >
+                            Nueva fecha
+                          </label>
+                          <Input
+                            id="reschedule-date"
+                            type="date"
+                            min={todayKey}
+                            value={newDate}
+                            onChange={(event) => {
+                              setNewDate(event.target.value);
+                              setNewTime("");
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <p className="mb-2 text-xs font-medium text-stone-700">
+                            Horarios con cupo
+                          </p>
+                          {availability.loading ? (
+                            <p className="text-[11px] text-stone-400">
+                              Verificando disponibilidad...
+                            </p>
+                          ) : !newDate ? (
+                            <p className="text-[11px] text-stone-500">
+                              Elige una fecha para ver los horarios.
+                            </p>
+                          ) : (availability.data?.scheduleSlots.length ?? 0) ===
+                            0 ? (
+                            <p className="rounded-xl border border-dashed border-stone-300 px-4 py-4 text-center text-xs text-stone-500">
+                              No quedan horarios para ese día. Prueba con otra
+                              fecha.
+                            </p>
+                          ) : (
+                            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                              {(availability.data?.scheduleSlots ?? []).map(
+                                (slot) => {
+                                  const taken = takenRescheduleSlots.has(slot);
+                                  const selected = newTime === slot && !taken;
+
+                                  return (
+                                    <button
+                                      key={slot}
+                                      type="button"
+                                      disabled={taken}
+                                      onClick={() => setNewTime(slot)}
+                                      aria-label={
+                                        taken
+                                          ? `${slot}, sin cupo`
+                                          : `Elegir ${slot}`
+                                      }
+                                      className={cn(
+                                        "rounded-lg border py-2 text-xs font-semibold transition-colors",
+                                        taken
+                                          ? "cursor-not-allowed border-stone-200 bg-stone-100 text-stone-400 line-through"
+                                          : selected
+                                            ? "border-brand-600 bg-brand-600 text-white"
+                                            : "border-stone-200 bg-white text-stone-600 hover:border-brand-300 hover:text-brand-700",
+                                      )}
+                                    >
+                                      {slot}
+                                    </button>
+                                  );
+                                },
+                              )}
+                            </div>
+                          )}
+                          {availability.error ? (
+                            <p className="mt-2 text-[11px] text-amber-700">
+                              No pudimos verificar la disponibilidad. Intenta de
+                              nuevo.
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {manageError ? (
+                      <Alert variant="error">{manageError}</Alert>
+                    ) : null}
+
+                    {manageMode === "cancel" ? (
+                      <Button
+                        variant="danger"
+                        disabled={manageBusy}
+                        onClick={() => {
+                          if (!managePhone && !manageDocumentId) {
+                            setManageError(
+                              "Ingresa el celular o el DNI usado al reservar.",
+                            );
+                            return;
+                          }
+                          setManageError(null);
+                          setConfirmCancel(true);
+                        }}
+                      >
+                        <XCircle className="size-4" />
+                        Cancelar mi cita
+                      </Button>
+                    ) : (
+                      <Button
+                        disabled={manageBusy}
+                        onClick={() => void handleReschedule()}
+                      >
+                        <CalendarClock className="size-4" />
+                        {manageBusy ? "Reprogramando..." : "Reprogramar cita"}
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
             </Card>
@@ -659,6 +1027,22 @@ export default function TrackingPage() {
           setConfirmCheckIn(false);
           void handleCheckIn();
         }}
+      />
+
+      <ConfirmDialog
+        open={confirmCancel}
+        tone="danger"
+        title="¿Cancelar tu cita?"
+        description={
+          appointment
+            ? `La cita ${appointment.code} de ${appointment.pet.name} quedará cancelada. Si luego cambias de opinión, podrás agendar una nueva cita.`
+            : undefined
+        }
+        confirmLabel="Sí, cancelar"
+        cancelLabel="Volver"
+        busy={manageBusy}
+        onCancel={() => setConfirmCancel(false)}
+        onConfirm={() => void handleCancel()}
       />
     </div>
   );

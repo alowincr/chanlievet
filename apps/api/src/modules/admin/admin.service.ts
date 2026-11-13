@@ -87,6 +87,7 @@ export async function getAdminStats(): Promise<AdminStatsDTO> {
     pending,
     waiting,
     inProgress,
+    emergenciesToday,
     completedToday,
     cancelledToday,
     lowStockProducts,
@@ -108,6 +109,13 @@ export async function getAdminStats(): Promise<AdminStatsDTO> {
     prisma.appointment.count({ where: { status: "PENDING" } }),
     prisma.appointment.count({ where: { status: "WAITING", scheduledAt: today } }),
     prisma.appointment.count({ where: { status: "IN_PROGRESS", scheduledAt: today } }),
+    prisma.appointment.count({
+      where: {
+        priority: "EMERGENCY",
+        scheduledAt: today,
+        status: { not: "CANCELLED" },
+      },
+    }),
     prisma.appointment.count({
       where: {
         status: "COMPLETED",
@@ -176,6 +184,7 @@ export async function getAdminStats(): Promise<AdminStatsDTO> {
     pending,
     waiting,
     inProgress,
+    emergenciesToday,
     completedToday,
     cancelledToday,
     lowStockCount,

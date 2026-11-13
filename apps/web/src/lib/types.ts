@@ -3,6 +3,8 @@
 export type Species = "DOG" | "CAT" | "OTHER";
 export type ProductAudience = "DOG" | "CAT" | "ALL";
 export type StaffRole = "ADMIN" | "VETERINARIAN";
+export type AppointmentPriority = "NORMAL" | "EMERGENCY";
+export type TriageSeverity = "CRITICAL" | "URGENT" | "MODERATE";
 
 export type AppointmentStatus =
   | "PENDING"
@@ -67,12 +69,16 @@ export interface Appointment {
   id: number;
   code: string;
   status: AppointmentStatus;
+  priority: AppointmentPriority;
+  triageSeverity: TriageSeverity | null;
+  triageSymptoms: string | null;
   scheduledAt: string;
   reason: string | null;
   notes: string | null;
   checkedInAt: string | null;
   startedAt: string | null;
   finishedAt: string | null;
+  cancelledAt: string | null;
   createdAt: string;
   queuePosition: number | null;
   /** Solo true si la cita es de hoy (Lima) y está dentro de la ventana. */
@@ -116,6 +122,10 @@ export interface Product {
 export interface QueuePatient {
   appointmentId: number;
   status: "WAITING" | "IN_PROGRESS";
+  priority: AppointmentPriority;
+  triageSeverity: TriageSeverity | null;
+  /** Solo se completa en la vista de personal. */
+  triageSymptoms: string | null;
   position: number | null;
   scheduledAt: string;
   checkedInAt: string | null;
@@ -176,8 +186,19 @@ export interface PatientOwner {
 export interface AppointmentUpdateEvent {
   code: string;
   status: AppointmentStatus;
+  priority: AppointmentPriority;
   queuePosition: number | null;
   updatedAt: string;
+}
+
+export interface Availability {
+  date: string;
+  capacity: number;
+  durationMin: number;
+  serviceId: number | null;
+  slots: string[];
+  availableSlots: string[];
+  scheduleSlots: string[];
 }
 
 export interface AdminStats {
@@ -185,6 +206,7 @@ export interface AdminStats {
   pending: number;
   waiting: number;
   inProgress: number;
+  emergenciesToday: number;
   completedToday: number;
   cancelledToday: number;
   lowStockCount: number;

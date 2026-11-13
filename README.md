@@ -15,10 +15,16 @@ Plataforma web para una clínica veterinaria ficticia con **una sola sede en San
 - **Carrito** con resumen y mensaje de pedido prearmado para WhatsApp (sin pasarela de pago).
 - **Agendar cita** sin crear cuenta: dueño (nombre, celular y **DNI de 8 dígitos**), mascota, servicio y fecha/hora. Al confirmar se entrega un código único (`CV-XXXXXX`).
   - Horarios calculados en la zona horaria de Lima y deshabilitados cuando ya están ocupados.
+  - **Cupo real por duración**: cada cita ocupa desde su hora de inicio hasta que termina el servicio. Una franja solo se ofrece si queda capacidad (`SLOT_CAPACITY`, por defecto 1). Las reservas del mismo día se serializan con un advisory lock para evitar sobreventa.
   - Confirmación con resumen antes de enviar y recuperación de la cita al recargar (`?codigo=`).
   - Bloqueo de reservas duplicadas (mismo celular + mismo horario) desde el servidor.
   - Recuperación del código perdido con **celular o DNI + nombre de la mascota**.
 - **Seguimiento** por código: estado de la cita, posición en la cola, check-in con ventana de 2 horas y actualizaciones por WebSocket.
+  - **Cancelar o reprogramar sin llamar**: el cliente confirma su identidad con el celular o DNI usado al reservar y puede mover la cita a otra franja con cupo o cancelarla. La reprogramación vuelve a estado “Registrada” para que recepción la confirme.
+- **Emergencias** (`/emergencia`): señales de alarma, teléfonos de contacto y triaje público en menos de un minuto.
+  - Gravedad `CRITICAL` / `URGENT` / `MODERATE`, síntomas y datos de la mascota.
+  - La cita entra **directamente a la cola como `WAITING` con prioridad `EMERGENCY`**: pasa al frente de la sala de espera y se destaca en rojo en la vista pública, admin y veterinaria.
+  - Solo se acepta dentro del horario de atención; fuera de horario se muestra el teléfono y WhatsApp de urgencia.
 - **Sala de espera virtual**: solo citas de hoy (calendario de Lima); nombres parciales en la vista pública.
 - **Login de personal** con JWT y cuentas demo.
 
@@ -26,6 +32,8 @@ Plataforma web para una clínica veterinaria ficticia con **una sola sede en San
 - Métricas del día (citas, en espera, en atención, finalizadas, stock bajo).
 - **Sala en vivo** y **actividad reciente** (llegadas, inicios y cierres de atención) actualizadas en tiempo real.
 - Agenda de citas con filtros por estado, fecha y búsqueda; cambio de estado y asignación de veterinario.
+- **Cancelar** disponible también para citas confirmadas y en espera, además de las registradas.
+- Las emergencias se identifican con una etiqueta roja y su nivel de triaje en la agenda.
 - Confirmación antes de cancelar, marcar inasistencia o finalizar; restauración de citas canceladas o con inasistencia.
 - **Pacientes y dueños** (`/admin/pacientes`): datos de contacto, DNI, mascotas e historial básico de visitas.
 - **Personal** (`/admin/personal`): crear y editar usuarios, cambiar roles, asignar especialidad y presentación, restablecer contraseña y desactivar/reactivar cuentas. Se protege la cuenta propia y exige al menos un administrador activo; la baja es lógica para no perder el historial de citas.
@@ -33,6 +41,7 @@ Plataforma web para una clínica veterinaria ficticia con **una sola sede en San
 
 ### Panel veterinario (`/veterinario`)
 - Cola de atención en dos columnas (en espera / en atención).
+- **Emergencias primero**: la cola ordena por prioridad y luego por llegada; el triaje y los síntomas se muestran solo al personal.
 - Botones de flujo: **En espera → En atención → Finalizado**, además de confirmar, ingresar a sala y marcar no asistió.
 - Confirmación antes de finalizar una atención o marcar inasistencia.
 - Temporizador de la consulta, contacto telefónico y WhatsApp.
@@ -171,6 +180,7 @@ npm run dev:web
 | `JWT_EXPIRES_IN` | Vigencia del token | `12h` |
 | `CORS_ORIGIN` | Orígenes permitidos, separados por coma | `http://localhost:3000` |
 | `LOW_STOCK_THRESHOLD` | Umbral de stock bajo | `5` |
+| `SLOT_CAPACITY` | Citas simultáneas permitidas por franja de 30 min | `1` |
 
 ### Variables de la web (`apps/web/.env.local`)
 
@@ -232,10 +242,14 @@ Base: `http://localhost:4000/api`
 | `GET` | `/services` | Servicios activos |
 | `GET` | `/staff/veterinarians/public` | Equipo visible en la web (nombre, especialidad, bio) |
 | `POST` | `/appointments` | Reserva sin registro → devuelve código |
-| `GET` | `/appointments/availability?date=YYYY-MM-DD` | Horarios ya ocupados del día (Lima) |
-| `POST` | `/appointments/lookup` | Recupera citas por celular + mascota |
+| `GET` | `/appointments/availability?date=YYYY-MM-DD&serviceId=1` | Franjas con cupo según la duración del servicio |
+| `POST` | `/appointments/lookup` | Recupera citas por celular o DNI + mascota |
 | `GET` | `/appointments/track/:code` | Seguimiento por código |
 | `POST` | `/appointments/track/:code/check-in` | Ingreso a la sala de espera (solo el día de la cita) |
+| `POST` | `/appointments/track/:code/cancel` | Cancelación por el cliente (celular o DNI) |
+| `POST` | `/appointments/track/:code/reschedule` | Reprogramación con validación de cupo |
+| `GET` | `/appointments/emergency/status` | ¿La clínica está abierta ahora? |
+| `POST` | `/appointments/emergency` | Triaje público → cita prioritaria en la cola |
 | `GET` | `/queue` | Snapshot público de la cola (nombres parciales, sin contactos ni códigos) |
 
 ### Staff autenticado (JWT)
@@ -289,7 +303,7 @@ El snapshot de cola se recalcula y emite en cada cambio relevante (check-in, ini
 - **Owner** — dueño identificado por teléfono (se reutiliza en nuevas reservas).
 - **Pet** — mascota del dueño; se reutiliza por nombre.
 - **Service** — servicios de la clínica con precio y duración.
-- **Appointment** — cita con código único, estado, timestamps y veterinario asignado.
+- **Appointment** — cita con código único, estado, prioridad (`NORMAL` / `EMERGENCY`), triaje (`triageSeverity`, `triageSymptoms`), timestamps y veterinario asignado.
 - **Category / Product** — catálogo con stock, público objetivo y visibilidad.
 
 Flujo de estados:
@@ -300,7 +314,9 @@ PENDING → CONFIRMED → WAITING → IN_PROGRESS → COMPLETED
 CANCELLED / NO_SHOW → CONFIRMED   (restauración por el admin)
 ```
 
-La cola se **deriva** de las citas (`WAITING` / `IN_PROGRESS`) y se filtra por el día calendario de Lima. La posición se calcula por `checkedInAt` e `id`.
+La cola se **deriva** de las citas (`WAITING` / `IN_PROGRESS`) y se filtra por el día calendario de Lima. El orden es prioridad (`EMERGENCY` primero) y luego `checkedInAt` / `id`; la posición del cliente usa ese mismo orden.
+
+La agenda se controla por intervalos: cada cita ocupa `[scheduledAt, scheduledAt + service.durationMin)` y el sistema rechaza con `409` cualquier reserva que supere `SLOT_CAPACITY` en esa franja.
 
 ---
 

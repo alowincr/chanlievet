@@ -6,6 +6,8 @@
 export type SpeciesValue = "DOG" | "CAT" | "OTHER";
 export type ProductAudienceValue = "DOG" | "CAT" | "ALL";
 export type StaffRoleValue = "ADMIN" | "VETERINARIAN";
+export type AppointmentPriorityValue = "NORMAL" | "EMERGENCY";
+export type TriageSeverityValue = "CRITICAL" | "URGENT" | "MODERATE";
 
 export type AppointmentStatusValue =
   | "PENDING"
@@ -70,12 +72,16 @@ export interface AppointmentDTO {
   id: number;
   code: string;
   status: AppointmentStatusValue;
+  priority: AppointmentPriorityValue;
+  triageSeverity: TriageSeverityValue | null;
+  triageSymptoms: string | null;
   scheduledAt: string;
   reason: string | null;
   notes: string | null;
   checkedInAt: string | null;
   startedAt: string | null;
   finishedAt: string | null;
+  cancelledAt: string | null;
   createdAt: string;
   queuePosition: number | null;
   /** Solo true si la cita es de hoy (Lima) y está dentro de la ventana. */
@@ -119,6 +125,10 @@ export interface ProductDTO {
 export interface QueuePatientDTO {
   appointmentId: number;
   status: "WAITING" | "IN_PROGRESS";
+  priority: AppointmentPriorityValue;
+  triageSeverity: TriageSeverityValue | null;
+  /** Solo se completa en la vista de personal. */
+  triageSymptoms: string | null;
   /** Posición 1-based dentro de la sala de espera; null si está en atención. */
   position: number | null;
   scheduledAt: string;
@@ -185,8 +195,21 @@ export interface PatientOwnerDTO {
 export interface AppointmentUpdateEventDTO {
   code: string;
   status: AppointmentStatusValue;
+  priority: AppointmentPriorityValue;
   queuePosition: number | null;
   updatedAt: string;
+}
+
+/** Disponibilidad pública de una fecha para un servicio concreto. */
+export interface AvailabilityDTO {
+  date: string;
+  capacity: number;
+  durationMin: number;
+  serviceId: number | null;
+  /** Franjas que ya no tienen cupo (compatibilidad con el cliente anterior). */
+  slots: string[];
+  availableSlots: string[];
+  scheduleSlots: string[];
 }
 
 export interface AdminStatsDTO {
@@ -194,6 +217,7 @@ export interface AdminStatsDTO {
   pending: number;
   waiting: number;
   inProgress: number;
+  emergenciesToday: number;
   completedToday: number;
   cancelledToday: number;
   lowStockCount: number;

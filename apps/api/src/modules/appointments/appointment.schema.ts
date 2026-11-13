@@ -114,6 +114,70 @@ export const availabilityQuerySchema = z.object({
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha esperado: YYYY-MM-DD"),
+  /** La duración del servicio define qué franjas alcanzan a terminar. */
+  serviceId: z.coerce.number().int().positive().optional(),
 });
 
 export type AvailabilityQuery = z.infer<typeof availabilityQuerySchema>;
+
+const ownerVerificationShape = {
+  phone: phoneSchema.optional(),
+  documentId: documentIdSchema.optional(),
+};
+
+const requireOwnerVerification = {
+  path: ["phone"],
+  message: "Confirma el celular o el DNI usado al reservar",
+};
+
+/** El cliente confirma su identidad con el celular o el DNI de la reserva. */
+export const appointmentActionAuthSchema = z
+  .object(ownerVerificationShape)
+  .refine((data) => Boolean(data.phone || data.documentId), requireOwnerVerification);
+
+export type AppointmentActionAuthInput = z.infer<
+  typeof appointmentActionAuthSchema
+>;
+
+/** Reprogramación pública: nueva fecha/hora + verificación del dueño. */
+export const rescheduleAppointmentSchema = z
+  .object({
+    ...ownerVerificationShape,
+    scheduledAt: z.coerce.date(),
+  })
+  .refine((data) => Boolean(data.phone || data.documentId), requireOwnerVerification)
+  .refine((data) => data.scheduledAt.getTime() >= Date.now() - 5 * 60 * 1000, {
+    path: ["scheduledAt"],
+    message: "La nueva fecha y hora deben ser futuras",
+  });
+
+export type RescheduleAppointmentInput = z.infer<
+  typeof rescheduleAppointmentSchema
+>;
+
+/** Triaje público de emergencia. */
+export const createEmergencySchema = z.object({
+  owner: z.object({
+    fullName: z
+      .string()
+      .trim()
+      .min(3, "Ingresa el nombre completo del dueño")
+      .max(120),
+    phone: phoneSchema,
+    documentId: documentIdSchema,
+  }),
+  pet: z.object({
+    name: z.string().trim().min(1, "Ingresa el nombre de la mascota").max(80),
+    species: z.enum(["DOG", "CAT", "OTHER"]),
+    breed: optionalText(80),
+  }),
+  severity: z.enum(["CRITICAL", "URGENT", "MODERATE"]),
+  symptoms: z
+    .string()
+    .trim()
+    .min(10, "Describe brevemente lo que observas (mínimo 10 caracteres)")
+    .max(800),
+  notes: optionalText(500),
+});
+
+export type CreateEmergencyInput = z.infer<typeof createEmergencySchema>;

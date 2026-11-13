@@ -49,6 +49,17 @@ enum AppointmentStatus {
   NO_SHOW // El cliente no asistió
 }
 
+enum AppointmentPriority {
+  NORMAL
+  EMERGENCY // Triaje de emergencia: pasa al frente de la cola
+}
+
+enum TriageSeverity {
+  CRITICAL // Rojo: riesgo de vida, atención inmediata
+  URGENT // Naranja: dolor o deterioro rápido
+  MODERATE // Amarillo: requiere evaluación pronto
+}
+
 // ----------------------------------------------------------------------------
 // Personal de la clínica
 // ----------------------------------------------------------------------------
@@ -138,12 +149,16 @@ model Appointment {
   id           Int               @id @default(autoincrement())
   code         String            @unique // código público de seguimiento, ej. CV-7K2M9A
   status       AppointmentStatus @default(PENDING)
+  priority     AppointmentPriority @default(NORMAL)
   scheduledAt  DateTime
   reason       String?
   notes        String?
+  triageSeverity TriageSeverity? // solo en citas de emergencia
+  triageSymptoms String? // síntomas reportados en el triaje
   checkedInAt  DateTime? // cuándo entró a la sala de espera virtual
   startedAt    DateTime? // cuándo el veterinario inició la atención
   finishedAt   DateTime? // cuándo finalizó la atención
+  cancelledAt  DateTime? // cuándo se canceló (cliente o staff)
   ownerId      Int
   petId        Int
   serviceId    Int
@@ -157,6 +172,7 @@ model Appointment {
   assignedVet StaffUser? @relation(fields: [assignedVetId], references: [id], onDelete: SetNull)
 
   @@index([status, scheduledAt])
+  @@index([priority, status, scheduledAt])
   @@index([checkedInAt])
   @@index([assignedVetId])
   @@index([scheduledAt])

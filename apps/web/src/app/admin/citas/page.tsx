@@ -13,6 +13,7 @@ import {
 import { PetAvatar } from "@/components/placeholders";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -24,6 +25,7 @@ import { useApiQuery } from "@/lib/hooks/use-api-query";
 import { getSocket, SOCKET_EVENTS } from "@/lib/socket";
 import {
   STATUS_LABELS,
+  TRIAGE_LABELS,
   formatDateTime,
   formatTime,
 } from "@/lib/format";
@@ -48,10 +50,12 @@ const ACTIONS: Record<AppointmentStatus, Action[]> = {
   CONFIRMED: [
     { label: "En espera", status: "WAITING", variant: "primary" },
     { label: "No asistió", status: "NO_SHOW", variant: "outline" },
+    { label: "Cancelar", status: "CANCELLED", variant: "danger" },
   ],
   WAITING: [
     { label: "Iniciar", status: "IN_PROGRESS", variant: "primary" },
     { label: "No asistió", status: "NO_SHOW", variant: "outline" },
+    { label: "Cancelar", status: "CANCELLED", variant: "danger" },
   ],
   IN_PROGRESS: [
     { label: "Finalizar", status: "COMPLETED", variant: "primary" },
@@ -366,9 +370,19 @@ export default function AdminAppointmentsPage() {
                             size="sm"
                           />
                           <div>
-                            <p className="font-medium text-stone-900">
-                              {appointment.pet.name}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <p className="font-medium text-stone-900">
+                                {appointment.pet.name}
+                              </p>
+                              {appointment.priority === "EMERGENCY" ? (
+                                <Badge tone="rose">
+                                  Emergencia
+                                  {appointment.triageSeverity
+                                    ? ` · ${TRIAGE_LABELS[appointment.triageSeverity]}`
+                                    : ""}
+                                </Badge>
+                              ) : null}
+                            </div>
                             <p className="text-[11px] text-stone-500">
                               {appointment.owner.fullName}
                             </p>

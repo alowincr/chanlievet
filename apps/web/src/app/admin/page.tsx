@@ -11,6 +11,7 @@ import {
   PawPrint,
   Radio,
   RefreshCw,
+  Siren,
   Sparkles,
   TriangleAlert,
   Users,
@@ -101,7 +102,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <StatCard
           label="Citas hoy"
           value={stats.appointmentsToday}
@@ -121,6 +122,13 @@ export default function AdminDashboardPage() {
           hint="Consultas en curso"
           icon={<Activity className="size-5" />}
           tone="violet"
+        />
+        <StatCard
+          label="Emergencias hoy"
+          value={stats.emergenciesToday}
+          hint="Triajes prioritarios"
+          icon={<Siren className="size-5" />}
+          tone="rose"
         />
         <StatCard
           label="Finalizadas hoy"
