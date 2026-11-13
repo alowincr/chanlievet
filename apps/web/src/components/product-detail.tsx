@@ -16,7 +16,7 @@ import {
   Truck,
 } from "lucide-react";
 import { ProductCard, ProductCardSkeleton } from "@/components/product-card";
-import { ProductImagePlaceholder } from "@/components/placeholders";
+import { ProductImage } from "@/components/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -126,12 +126,13 @@ export function ProductDetail({ slug }: { slug: string }) {
 
       <div className="mt-6 grid gap-8 lg:grid-cols-2">
         <div>
-          <ProductImagePlaceholder
+          <ProductImage
             name={product.name}
             categorySlug={product.category.slug}
             imageUrl={product.imageUrl}
             className="aspect-square w-full"
             iconClassName="size-24"
+            zoomable
           />
           <div className="mt-3 grid grid-cols-3 gap-2">
             {[

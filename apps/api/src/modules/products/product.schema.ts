@@ -8,6 +8,24 @@ const optionalText = (max: number) =>
     z.string().trim().max(max).optional(),
   );
 
+/**
+ * URL de imagen opcional. Una cadena vacía se interpreta como `null` para
+ * poder quitar la imagen desde el panel, y se valida que sea una URL real.
+ */
+const optionalImageUrl = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  z
+    .union([
+      z
+        .string()
+        .trim()
+        .url("Ingresa una URL de imagen válida (debe empezar con http:// o https://)")
+        .max(500),
+      z.null(),
+    ])
+    .optional(),
+);
+
 export const listProductsQuerySchema = z.object({
   category: z.string().trim().max(60).optional(),
   audience: z.enum(["DOG", "CAT", "ALL"]).optional(),
@@ -25,7 +43,7 @@ export const createProductSchema = z.object({
   stock: z.coerce.number().int().min(0).default(0),
   audience: z.enum(["DOG", "CAT", "ALL"]).default("ALL"),
   categoryId: z.coerce.number().int().positive("Selecciona una categoría"),
-  imageUrl: optionalText(500),
+  imageUrl: optionalImageUrl,
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
@@ -38,7 +56,7 @@ export const updateProductSchema = z
     stock: z.coerce.number().int().min(0).optional(),
     audience: z.enum(["DOG", "CAT", "ALL"]).optional(),
     categoryId: z.coerce.number().int().positive().optional(),
-    imageUrl: optionalText(500),
+    imageUrl: optionalImageUrl,
     active: z.boolean().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {

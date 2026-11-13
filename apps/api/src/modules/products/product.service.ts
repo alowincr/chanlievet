@@ -18,19 +18,28 @@ function slugify(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
+    .slice(0, 80)
+    .replace(/-+$/g, "");
 
   return base || `producto-${Date.now()}`;
 }
 
-async function generateUniqueSlug(name: string): Promise<string> {
+async function generateUniqueSlug(
+  name: string,
+  excludeId?: number,
+): Promise<string> {
   const base = slugify(name);
   let candidate = base;
   let suffix = 2;
 
-  while (
-    await prisma.product.findUnique({ where: { slug: candidate }, select: { id: true } })
-  ) {
+  while (true) {
+    const existing = await prisma.product.findUnique({
+      where: { slug: candidate },
+      select: { id: true },
+    });
+
+    if (!existing || existing.id === excludeId) break;
+
     candidate = `${base}-${suffix}`;
     suffix += 1;
 
@@ -155,16 +164,25 @@ export async function updateProduct(
     }
   }
 
+  // Al guardar un nombre, la URL pública se sincroniza con él. Así el slug
+  // nunca queda apuntando a un nombre anterior y las ediciones antiguas se
+  // corrigen con solo volver a guardar el producto.
+  const slug =
+    input.name !== undefined
+      ? await generateUniqueSlug(input.name, id)
+      : undefined;
+
   const product = await prisma.product.update({
     where: { id },
     data: {
       ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(slug !== undefined ? { slug } : {}),
       ...(input.description !== undefined ? { description: input.description } : {}),
       ...(input.price !== undefined ? { price: input.price } : {}),
       ...(input.stock !== undefined ? { stock: input.stock } : {}),
       ...(input.audience !== undefined ? { audience: input.audience } : {}),
       ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
-      ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
+      ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl ?? null } : {}),
       ...(input.active !== undefined ? { active: input.active } : {}),
     },
     include: { category: true },

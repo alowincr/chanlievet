@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
+  ExternalLink,
+  ImageOff,
   Minus,
   Package,
   PackagePlus,
@@ -12,7 +15,7 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { ProductImagePlaceholder } from "@/components/placeholders";
+import { ProductImage } from "@/components/product-image";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +54,9 @@ function ProductFormDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const previewCategory =
+    categories.find((item) => String(item.id) === categoryId) ?? categories[0];
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -64,7 +70,8 @@ function ProductFormDialog({
         stock: Number(stock),
         audience,
         categoryId: Number(categoryId),
-        imageUrl: imageUrl.trim() || undefined,
+        // `null` quita la imagen; una URL válida se guarda tal cual.
+        imageUrl: imageUrl.trim() || null,
       };
 
       if (product) {
@@ -111,7 +118,12 @@ function ProductFormDialog({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 p-5">
-          <Field label="Nombre" htmlFor="product-name" required>
+          <Field
+            label="Nombre"
+            htmlFor="product-name"
+            hint="Si cambias el nombre, la URL pública del producto se actualiza automáticamente."
+            required
+          >
             <Input
               id="product-name"
               value={name}
@@ -197,16 +209,46 @@ function ProductFormDialog({
           <Field
             label="URL de imagen"
             htmlFor="product-image"
-            hint="Opcional. Si se deja vacío se muestra un marcador."
+            hint="Copia el enlace directo de la imagen (JPG, PNG o WebP). Vacío = marcador."
           >
             <Input
               id="product-image"
+              type="url"
               value={imageUrl}
               onChange={(event) => setImageUrl(event.target.value)}
               placeholder="https://..."
               maxLength={500}
             />
           </Field>
+
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-stone-50/70 p-3">
+            <ProductImage
+              name={name.trim() || "Producto"}
+              categorySlug={previewCategory?.slug ?? "alimentos"}
+              imageUrl={imageUrl.trim() || null}
+              className="size-24 shrink-0 bg-white"
+              iconClassName="size-7"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-stone-700">
+                Vista previa de la imagen
+              </p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500">
+                Se muestra completa, sin recortes, sobre fondo neutro. Si el
+                enlace está roto, verás el marcador de la categoría.
+              </p>
+              {imageUrl.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => setImageUrl("")}
+                  className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-stone-500 underline underline-offset-2 hover:text-rose-600"
+                >
+                  <ImageOff className="size-3" />
+                  Quitar imagen
+                </button>
+              ) : null}
+            </div>
+          </div>
 
           {product ? (
             <label className="flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-700">
@@ -488,21 +530,33 @@ export default function AdminProductsPage() {
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <ProductImagePlaceholder
+                        <ProductImage
                           name={product.name}
                           categorySlug={product.category.slug}
                           imageUrl={product.imageUrl}
-                          className="size-12 shrink-0"
+                          className="size-14 shrink-0"
                           iconClassName="size-5"
                           showLabel={false}
                         />
-                        <div className="min-w-0">
-                          <p className="font-medium text-stone-900">
+                        <div className="flex min-w-0 flex-col items-start gap-0.5">
+                          <Link
+                            href={`/producto/${product.slug}`}
+                            target="_blank"
+                            className="max-w-full truncate font-medium text-stone-900 hover:text-brand-700 hover:underline"
+                          >
                             {product.name}
-                          </p>
-                          <p className="text-[11px] text-stone-400">
-                            {product.category.name} · {product.slug}
-                          </p>
+                          </Link>
+                          <Link
+                            href={`/producto/${product.slug}`}
+                            target="_blank"
+                            className="inline-flex max-w-full items-center gap-1 text-[11px] text-stone-400 hover:text-brand-700"
+                            title="Abrir la ficha pública en una pestaña nueva"
+                          >
+                            <span className="truncate">
+                              {product.category.name} · /producto/{product.slug}
+                            </span>
+                            <ExternalLink className="size-3 shrink-0" />
+                          </Link>
                         </div>
                       </div>
                     </td>

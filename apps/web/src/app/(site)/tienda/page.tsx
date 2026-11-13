@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";import { PackageSearch, Search, ShoppingBasket, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { PackageSearch, Search, ShoppingBasket, Sparkles } from "lucide-react";
 import { ProductCard, ProductCardSkeleton } from "@/components/product-card";
 import { Alert } from "@/components/ui/alert";
 import { Button, ButtonLink } from "@/components/ui/button";

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Check, Plus, ShoppingBasket } from "lucide-react";
-import { ProductImagePlaceholder } from "@/components/placeholders";
+import { ProductImage } from "@/components/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/hooks/use-cart";
@@ -24,11 +24,11 @@ export function ProductCard({ product }: { product: Product }) {
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5 transition-shadow hover:shadow-md hover:shadow-stone-900/10">
       <Link href={`/producto/${product.slug}`} className="block p-3 pb-0">
-        <ProductImagePlaceholder
+        <ProductImage
           name={product.name}
           categorySlug={product.category.slug}
           imageUrl={product.imageUrl}
-          className="aspect-[4/3] w-full transition-transform duration-300 group-hover:scale-[1.015]"
+          className="aspect-square w-full"
         />
       </Link>
 
@@ -95,7 +95,7 @@ export function ProductCard({ product }: { product: Product }) {
 export function ProductCardSkeleton() {
   return (
     <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
-      <div className="m-3 aspect-[4/3] animate-pulse rounded-2xl bg-stone-200/70" />
+      <div className="m-3 aspect-square animate-pulse rounded-2xl bg-stone-200/70" />
       <div className="space-y-2 p-4">
         <div className="h-3 w-20 animate-pulse rounded bg-stone-200/70" />
         <div className="h-4 w-3/4 animate-pulse rounded bg-stone-200/70" />

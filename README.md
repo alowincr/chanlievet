@@ -38,6 +38,8 @@ Plataforma web para una clínica veterinaria ficticia con **una sola sede en San
 - **Pacientes y dueños** (`/admin/pacientes`): datos de contacto, DNI, mascotas e historial básico de visitas.
 - **Personal** (`/admin/personal`): crear y editar usuarios, cambiar roles, asignar especialidad y presentación, restablecer contraseña y desactivar/reactivar cuentas. Se protege la cuenta propia y exige al menos un administrador activo; la baja es lógica para no perder el historial de citas.
 - Inventario: crear/editar productos, ajustar stock, activar/ocultar, alertas de stock bajo.
+- Imágenes de producto por URL con vista previa en el formulario; si el enlace falla se muestra el marcador de la categoría.
+- El slug público se regenera al guardar el nombre, así la dirección `/producto/...` coincide siempre con el catálogo actual.
 
 ### Panel veterinario (`/veterinario`)
 - Cola de atención en dos columnas (en espera / en atención).

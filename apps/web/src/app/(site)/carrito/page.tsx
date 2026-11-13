@@ -10,7 +10,7 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
-import { ProductImagePlaceholder } from "@/components/placeholders";
+import { ProductImage } from "@/components/product-image";
 import { Alert } from "@/components/ui/alert";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -86,7 +86,7 @@ export default function CartPage() {
               className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm shadow-stone-900/5 sm:flex-row sm:items-center"
             >
               <Link href={`/producto/${item.slug}`} className="shrink-0">
-                <ProductImagePlaceholder
+                <ProductImage
                   name={item.name}
                   categorySlug={item.categorySlug}
                   imageUrl={item.imageUrl}
