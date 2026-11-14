@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
-import { CLINIC } from "@/lib/clinic";
+import { CLINIC, PORTFOLIO_NOTICE } from "@/lib/clinic";
 import { EmergencyForm } from "./emergency-form";
 
 export const metadata: Metadata = {
@@ -79,6 +79,17 @@ const STEPS = [
 export default function EmergencyPage() {
   return (
     <div className="bg-cream-50">
+      {/* Aviso obligatorio: no es una clínica real. */}
+      <div className="border-b border-rose-200 bg-rose-100/70">
+        <div className="mx-auto flex max-w-6xl items-start gap-3 px-4 py-3.5 text-sm text-rose-900">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-rose-600" />
+          <p className="leading-relaxed">
+            <strong>{PORTFOLIO_NOTICE.title}.</strong>{" "}
+            {PORTFOLIO_NOTICE.emergency}
+          </p>
+        </div>
+      </div>
+
       {/* Hero de urgencia */}
       <section className="relative overflow-hidden border-b-2 border-forest-900/10 bg-gradient-to-br from-rose-50 via-cream-50 to-cream-100">
         <div

@@ -11,7 +11,18 @@ export const CLINIC = {
     { days: "Sábados", time: "8:00 a. m. – 6:00 p. m." },
     { days: "Domingos y feriados", time: "9:00 a. m. – 2:00 p. m." },
   ],
-  emergencyNote: "Atención de emergencias dentro del horario de atención.",
+} as const;
+
+/**
+ * Aviso que debe acompañar al sitio público: ChanlieVet es una demo de
+ * portafolio y no una clínica real.
+ */
+export const PORTFOLIO_NOTICE = {
+  title: "Proyecto de portafolio",
+  footer:
+    "ChanlieVet es una demostración de portafolio. La clínica, el equipo, los precios y los datos de contacto son ficticios: no es una veterinaria real ni atiende emergencias.",
+  emergency:
+    "Esta página es parte de una demostración de portafolio. ChanlieVet no es una clínica real y no atiende emergencias. Si tu mascota necesita ayuda urgente, acude a un centro veterinario real.",
 } as const;
 
 export const NAV_LINKS = [

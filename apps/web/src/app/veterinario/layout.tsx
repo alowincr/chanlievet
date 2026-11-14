@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
 import { PanelShell } from "@/components/panel-shell";
+
+export const metadata: Metadata = {
+  title: "Panel veterinario",
+  robots: { index: false, follow: false },
+};
 
 export default function VetLayout({
   children,

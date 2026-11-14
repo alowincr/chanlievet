@@ -19,6 +19,12 @@ interface PrismaLikeError {
   meta?: unknown;
 }
 
+/** Errores que produce body-parser al leer el cuerpo de la solicitud. */
+interface BodyParserLikeError {
+  type?: string;
+  status?: number;
+}
+
 function isPrismaKnownError(error: unknown): error is PrismaLikeError {
   return (
     typeof error === "object" &&
@@ -58,6 +64,22 @@ export function errorHandler(
       ...(error.details !== undefined ? { details: error.details } : {}),
     });
     return;
+  }
+
+  // JSON mal formado o cuerpo demasiado grande: son errores del cliente,
+  // no fallas internas del servidor.
+  if (typeof error === "object" && error !== null) {
+    const bodyError = error as BodyParserLikeError;
+
+    if (bodyError.type === "entity.parse.failed") {
+      res.status(400).json({ error: "El cuerpo de la solicitud no es JSON válido" });
+      return;
+    }
+
+    if (bodyError.type === "entity.too.large") {
+      res.status(413).json({ error: "La solicitud es demasiado grande" });
+      return;
+    }
   }
 
   if (isPrismaKnownError(error)) {

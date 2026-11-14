@@ -1,8 +1,8 @@
 # ChanlieVet
 
-Plataforma web para una clínica veterinaria ficticia con **una sola sede en San Juan de Lurigancho, Lima**. Incluye tienda con carrito, reserva de citas **sin registro obligatorio**, seguimiento por código, sala de espera virtual en tiempo real y paneles de administración y veterinaria.
+**Proyecto de portafolio.** ChanlieVet es una demostración de desarrollo web: no es una veterinaria real, no atiende emergencias y todos sus datos (clínica, equipo, precios, teléfonos, dirección y credenciales) son ficticios. El sitio muestra un aviso visible en el footer y en la página de emergencia para evitar confusiones.
 
-> Todos los datos del seed (nombres, teléfonos, correos y credenciales) son ficticios y solo sirven para la demostración.
+Plataforma web para una clínica veterinaria ficticia con **una sola sede en San Juan de Lurigancho, Lima**. Incluye tienda con carrito, reserva de citas **sin registro obligatorio**, seguimiento por código, sala de espera virtual en tiempo real y paneles de administración y veterinaria.
 
 ---
 
@@ -224,6 +224,7 @@ Desde la raíz:
 | `npm run db:deploy` | Aplica migraciones existentes |
 | `npm run db:seed` | Ejecuta el seed de demostración |
 | `npm run db:studio` | Abre Prisma Studio |
+| `npm run smoke` | Smoke tests de solo lectura contra el API |
 | `npm run db:up` | Levanta solo PostgreSQL con Docker |
 | `npm run docker:up` / `docker:down` / `docker:reset` | Ciclo de vida de Compose |
 
@@ -339,7 +340,8 @@ La agenda se controla por intervalos: cada cita ocupa `[scheduledAt, scheduledAt
 
 - **Sin cuentas de cliente**: el teléfono identifica al dueño y el código de cita permite el seguimiento.
 - **Carrito local**: se guarda en `localStorage`; el checkout se coordina por WhatsApp y el stock se confirma al atender el pedido.
-- **Imágenes como placeholders**: el seed deja `imageUrl`, `photoUrl` y `avatarUrl` en `null` a propósito para mostrar los componentes de marcador.
+- **Imágenes de producto**: se guardan como URL desde el panel. El seed deja las imágenes en `null` para mostrar el marcador de categoría; el catálogo cargado puede tener fotos reales con encuadre cuadrado y respaldo automático si el enlace falla.
+- **Aviso de portafolio**: el footer y `/emergencia` declaran que la clínica es ficticia. Es parte de la experiencia, no un detalle opcional.
 - **Identidad visual**: fondo crema editorial, verde bosque profundo y acentos coral; tipografías Bricolage Grotesque (títulos) e Instrument Sans (texto).
 - **Prisma 7**: la URL del CLI vive en `prisma7.config.ts` y el runtime usa `@prisma/adapter-pg`.
 - **JWT en localStorage** por simplicidad de demo; en producción se recomienda cookie `HttpOnly` + refresh tokens y cambiar `JWT_SECRET`.
@@ -352,6 +354,9 @@ La agenda se controla por intervalos: cada cita ocupa `[scheduledAt, scheduledAt
 npm --prefix apps/api run typecheck
 npm --prefix apps/web run typecheck
 npm run build
+
+# Con el API levantado en http://localhost:4000
+npm run smoke
 ```
 
 Ambas apps compilan con TypeScript estricto y Next.js genera el build standalone usado por Docker.
@@ -363,5 +368,20 @@ Además se ejecutaron pruebas funcionales contra el API local:
 - **Concurrencia**: dos `POST /api/appointments` simultáneos con el mismo celular y horario → `201` + `409`.
 - **Restauración**: cancelar una cita y volver a `CONFIRMED` desde el panel admin; la cita deja de aparecer en la cola.
 - **Auditoría de UI** en escritorio (1440 px) y móvil (390 px): 0 desbordes horizontales, 0 errores de consola, tipografías y paleta correctas; el carrusel del equipo tiene un salto de costura de **0 px**, botón de pausa/reanudar y respeta `prefers-reduced-motion`.
+- **Smoke tests del API (`npm run smoke`, 23/23)**: salud y cabeceras, categorías, productos y detalle, servicios, disponibilidad, cola pública anonimizada, bloqueo de endpoints privados sin token, login válido e inválido, métricas, pacientes, personal, validación de URL de imagen, `404` y JSON mal formado.
+- **Flujo de reserva (33/33)**: prueba completa con creación de cita, seguimiento por código, rechazo de cancelación con celular ajeno (`403`), cancelación con el celular correcto y rechazo de check-in tras cancelar (`409`). Los datos de prueba se eliminaron al terminar.
+- **Calidad de respuesta**: JSON mal formado devuelve `400` (no `500`), las rutas inexistentes devuelven `404` y el API envía cabeceras `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` y `Permissions-Policy`.
+- **SEO y accesibilidad**: `robots.txt` y `sitemap.xml` (incluye productos), metadatos por página y ficha de producto, enlace «Saltar al contenido» y `aria-current` en la navegación.
+- **Navegación real (16/16 páginas)**: inicio, tienda, ficha de producto, citas, seguimiento, sala de espera, emergencia, carrito, login y los seis paneles de admin y veterinario cargaron sin errores de consola ni solicitudes fallidas.
+- **Responsive (27/27 vistas)**: las mismas pantallas se revisaron a 390, 1024 y 1440 px sin desbordes horizontales (`scrollWidth === innerWidth`).
+- **Aviso de portafolio**: visible en el footer de todo el sitio y en la cabecera de `/emergencia`, verificado por texto en el navegador.
+
+### Recomendaciones de mayor alcance
+
+- Añadir *rate limiting* y bloqueo temporal en `/api/auth/login` y en la creación pública de citas.
+- Migrar el JWT de `localStorage` a cookie `HttpOnly` + `SameSite` con refresh tokens.
+- Añadir pruebas automatizadas con Vitest/Playwright y un pipeline de CI que ejecute typecheck, build y smoke tests.
+- Servir las imágenes de producto desde un CDN propio o desde `next/image` con dominios permitidos, en lugar de depender de URLs externas.
+- Evaluar un panel de pedidos si la tienda deja de ser una demo y pasa a gestionar ventas reales.
 
 > Docker Compose no se pudo ejecutar en el entorno de desarrollo usado (CLI no disponible). Los `Dockerfile` y `docker-compose.yml` quedan incluidos para levantarlo en una máquina con Docker.

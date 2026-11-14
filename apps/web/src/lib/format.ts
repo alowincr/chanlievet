@@ -61,16 +61,6 @@ export const STATUS_LABELS: Record<AppointmentStatus, string> = {
   NO_SHOW: "No asistió",
 };
 
-export const STATUS_TONES: Record<AppointmentStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-800 border-amber-200",
-  CONFIRMED: "bg-sky-100 text-sky-800 border-sky-200",
-  WAITING: "bg-brand-100 text-brand-800 border-brand-200",
-  IN_PROGRESS: "bg-violet-100 text-violet-800 border-violet-200",
-  COMPLETED: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  CANCELLED: "bg-stone-200 text-stone-600 border-stone-300",
-  NO_SHOW: "bg-rose-100 text-rose-800 border-rose-200",
-};
-
 export const SPECIES_LABELS: Record<Species, string> = {
   DOG: "Perro",
   CAT: "Gato",
@@ -94,10 +84,6 @@ export const AUDIENCE_LABELS: Record<ProductAudience, string> = {
   CAT: "Gato",
   ALL: "Todos",
 };
-
-export function speciesLabel(species: Species): string {
-  return SPECIES_LABELS[species] ?? "Mascota";
-}
 
 export function initials(name: string): string {
   return name

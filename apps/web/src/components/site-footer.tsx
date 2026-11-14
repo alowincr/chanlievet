@@ -1,11 +1,23 @@
 import Link from "next/link";
-import { Clock, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
+import { Clock, Info, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { Logo } from "@/components/logo";
-import { CLINIC, NAV_LINKS } from "@/lib/clinic";
+import { CLINIC, NAV_LINKS, PORTFOLIO_NOTICE } from "@/lib/clinic";
 
 export function SiteFooter() {
   return (
     <footer className="mt-20 border-t-4 border-coral-500 bg-forest-950 text-stone-300">
+      <div className="border-b border-white/10 bg-coral-500/10">
+        <div className="mx-auto flex max-w-6xl items-start gap-3 px-4 py-4">
+          <Info className="mt-0.5 size-4 shrink-0 text-coral-300" />
+          <p className="text-xs leading-relaxed text-cream-100/90 sm:text-sm">
+            <span className="font-bold text-coral-200">
+              {PORTFOLIO_NOTICE.title}.
+            </span>{" "}
+            {PORTFOLIO_NOTICE.footer}
+          </p>
+        </div>
+      </div>
+
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-4">
           <Logo light />
@@ -122,7 +134,7 @@ export function SiteFooter() {
             © {new Date().getFullYear()} {CLINIC.name}. Todos los derechos
             reservados.
           </p>
-          <p>{CLINIC.emergencyNote} · Hecho con cariño en Lima, Perú.</p>
+          <p>Proyecto de portafolio · Hecho con cariño en Lima, Perú.</p>
         </div>
       </div>
     </footer>

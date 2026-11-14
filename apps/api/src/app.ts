@@ -9,6 +9,19 @@ import type { HealthDTO } from "./types/dto";
 export const app = express();
 
 app.disable("x-powered-by");
+
+// Cabeceras defensivas básicas, sin dependencias adicionales.
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()",
+  );
+  next();
+});
+
 app.use(
   cors({
     origin: corsOrigins,

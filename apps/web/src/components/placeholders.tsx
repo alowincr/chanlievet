@@ -1,4 +1,3 @@
-import { PawPrint } from "lucide-react";
 import type { Species } from "@/lib/types";
 import { SPECIES_LABELS, initials } from "@/lib/format";
 import { SpeciesIcon } from "@/components/species-icon";
@@ -101,8 +100,4 @@ export function StaffAvatar({
       {initials(name)}
     </span>
   );
-}
-
-export function PawMark({ className }: { className?: string }) {
-  return <PawPrint className={cn("size-5", className)} />;
 }

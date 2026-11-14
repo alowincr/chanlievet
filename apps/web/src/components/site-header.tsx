@@ -32,6 +32,7 @@ export function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
+              aria-current={isActive(link.href) ? "page" : undefined}
               className={cn(
                 "rounded-full px-3.5 py-2 text-sm font-semibold transition-colors",
                 isActive(link.href)
@@ -86,6 +87,7 @@ export function SiteHeader() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
+                aria-current={isActive(link.href) ? "page" : undefined}
                 className={cn(
                   "rounded-xl px-3 py-2.5 text-sm font-semibold",
                   isActive(link.href)

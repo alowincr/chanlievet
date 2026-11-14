@@ -84,6 +84,12 @@ export function PanelShell({
 
   return (
     <div className="min-h-screen bg-stone-100/80">
+      <a
+        href="#contenido"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-full focus:bg-forest-900 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-cream-50"
+      >
+        Saltar al contenido
+      </a>
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-stone-200 bg-white md:flex">
         <div className="border-b border-stone-100 px-5 py-5">
           <Logo />
@@ -231,7 +237,10 @@ export function PanelShell({
           </nav>
         </header>
 
-        <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
+        <main
+          id="contenido"
+          className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8"
+        >
           {children}
         </main>
       </div>

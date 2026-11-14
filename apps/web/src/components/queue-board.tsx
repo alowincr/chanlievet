@@ -16,13 +16,13 @@ import type { QueuePatient, QueueSnapshot } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 /** Nombre parcial: la sala pública nunca muestra apellidos completos. */
-export function partialName(fullName: string): string {
+function partialName(fullName: string): string {
   const parts = fullName.trim().split(/\s+/);
   if (parts.length === 1) return parts[0] ?? fullName;
   return `${parts[0]} ${parts[1]?.charAt(0) ?? ""}.`;
 }
 
-export function formatLimaDateKey(dateKey: string): string {
+function formatLimaDateKey(dateKey: string): string {
   const parsed = new Date(`${dateKey}T12:00:00-05:00`);
   if (Number.isNaN(parsed.getTime())) return dateKey;
 

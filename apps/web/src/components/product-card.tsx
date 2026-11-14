@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Check, Plus, ShoppingBasket } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { ProductImage } from "@/components/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,16 +106,5 @@ export function ProductCardSkeleton() {
         </div>
       </div>
     </div>
-  );
-}
-
-export function CartHint() {
-  return (
-    <Link
-      href="/carrito"
-      className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:text-brand-800"
-    >
-      <ShoppingBasket className="size-4" /> Ver carrito
-    </Link>
   );
 }

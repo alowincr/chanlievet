@@ -37,7 +37,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className={`${sansFont.variable} ${displayFont.variable}`}>
+    <html
+      lang="es"
+      data-scroll-behavior="smooth"
+      className={`${sansFont.variable} ${displayFont.variable}`}
+    >
       <body>
         <Providers>{children}</Providers>
       </body>

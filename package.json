@@ -13,6 +13,7 @@
     "db:deploy": "npm --prefix apps/api run db:deploy",
     "db:seed": "npm --prefix apps/api run db:seed",
     "db:studio": "npm --prefix apps/api run db:studio",
+    "smoke": "node scripts/smoke.mjs",
     "db:up": "docker compose up -d db",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
