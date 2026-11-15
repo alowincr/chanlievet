@@ -59,6 +59,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
+      # Resolución interna del API para SSR (el navegador sigue usando localhost).
+      API_INTERNAL_URL: http://api:4000
     ports:
       - "3000:3000"
     depends_on:

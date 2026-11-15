@@ -1,9 +1,11 @@
 import type { MetadataRoute } from "next";
+import { SERVER_API_URL } from "@/lib/api";
 
 const BASE_URL = "https://chanlievet.pe";
-const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
-).replace(/\/$/, "");
+
+// El sitemap consulta el catálogo en cada petición: en Docker el API no existe
+// durante el build de la imagen y los productos quedarían fuera del XML.
+export const dynamic = "force-dynamic";
 
 const PUBLIC_ROUTES: Array<{
   path: string;
@@ -27,7 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   try {
-    const response = await fetch(`${API_URL}/api/products?limit=60`, {
+    const response = await fetch(`${SERVER_API_URL}/api/products?limit=60`, {
       next: { revalidate: 3600 },
     });
 

@@ -129,6 +129,16 @@ Al iniciar, el contenedor del API:
 3. Levanta Express + Socket.io en el puerto `4000`.
 
 > El puerto **5433** en el host evita chocar con un PostgreSQL local que ya use 5432.
+>
+> Los puertos **3000** y **4000** deben estar libres: si tienes `npm run dev:web`
+> o `npm run dev:api` activos, deténlos antes de levantar los contenedores.
+>
+> Dentro de la red de Compose, la web renderiza en servidor contra
+> `http://api:4000` (`API_INTERNAL_URL`) mientras el navegador sigue usando
+> `http://localhost:4000`; no hace falta configurar nada extra.
+>
+> Los datos viven en el volumen `chanlievet_chanlievet-db`, así que
+> `docker compose down` no borra la base.
 
 Detener:
 

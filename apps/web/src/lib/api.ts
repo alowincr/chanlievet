@@ -1,8 +1,22 @@
 import type { StaffUser } from "./types";
 
+/** URL del API tal como la ve el navegador. */
 export const API_URL = (
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 ).replace(/\/$/, "");
+
+/**
+ * URL que usan los componentes de servidor para hablar con el API.
+ * En Docker el navegador usa `localhost:4000`, pero el contenedor web debe
+ * resolver el servicio `api` por su nombre interno (`http://api:4000`).
+ */
+export const SERVER_API_URL = (
+  process.env.API_INTERNAL_URL ?? API_URL
+).replace(/\/$/, "");
+
+function resolveApiUrl(): string {
+  return typeof window === "undefined" ? SERVER_API_URL : API_URL;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -69,7 +83,7 @@ export async function apiFetch<T>(
   let response: Response;
 
   try {
-    response = await fetch(`${API_URL}${path}`, {
+    response = await fetch(`${resolveApiUrl()}${path}`, {
       method: options.method ?? "GET",
       headers,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,

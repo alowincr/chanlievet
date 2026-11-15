@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
 import { ProductDetail } from "@/components/product-detail";
-
-const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
-).replace(/\/$/, "");
+import { SERVER_API_URL } from "@/lib/api";
 
 async function getProduct(slug: string) {
   try {
-    const response = await fetch(`${API_URL}/api/products/${slug}`, {
+    const response = await fetch(`${SERVER_API_URL}/api/products/${slug}`, {
       next: { revalidate: 300 },
     });
 
