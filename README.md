@@ -4,6 +4,42 @@
 
 Plataforma web para una clínica veterinaria ficticia con **una sola sede en San Juan de Lurigancho, Lima**. Incluye tienda con carrito, reserva de citas **sin registro obligatorio**, seguimiento por código, sala de espera virtual en tiempo real y paneles de administración y veterinaria.
 
+[![Demo en vivo](https://img.shields.io/badge/Demo-en%20vivo-14532d?style=flat-square)](https://chanlievet.vercel.app)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19-149eca?style=flat-square&logo=react&logoColor=white)](https://react.dev)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169e1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Prisma](https://img.shields.io/badge/Prisma-7-2d3748?style=flat-square&logo=prisma&logoColor=white)](https://www.prisma.io)
+
+![Inicio de ChanlieVet](docs/screenshots/home.png)
+
+## 🎬 Demo
+
+| | |
+| --- | --- |
+| **Web** | <https://chanlievet.vercel.app> |
+| **API** | <https://chanlievet-api.onrender.com/api/health> |
+| **Panel admin** | <https://chanlievet.vercel.app/login> |
+| **Correo demo** | `admin@chanlievet.pe` |
+| **Contraseña demo** | `chanlievet123` |
+
+> El API corre en el plan gratuito de Render: si nadie lo visitó en los últimos minutos, la primera petición puede tardar ~50 segundos. La web y la base de datos están siempre disponibles.
+
+> **Demo abierta y descartable:** los datos son ficticios y el panel admin usa credenciales públicas a propósito, para que puedas probar el flujo completo. No ingreses información personal real.
+
+## 📸 Capturas
+
+**Reserva de cita sin registro** — cupos calculados por duración real del servicio:
+
+![Agendar cita](docs/screenshots/citas.png)
+
+**Sala de espera en vivo** — derivada de las citas del día, con nombres parciales en la vista pública:
+
+![Sala de espera](docs/screenshots/sala-espera.png)
+
+**Acceso del equipo** — JWT para administración y veterinaria:
+
+![Login del personal](docs/screenshots/login.png)
+
 ---
 
 ## ✨ Funcionalidades
@@ -409,6 +445,7 @@ La agenda se controla por intervalos: cada cita ocupa `[scheduledAt, scheduledAt
 - El check-in solo se permite el **día de la cita** (calendario de Lima) y desde 2 horas antes.
 - El servidor rechaza reservas duplicadas con el mismo celular y el mismo horario, incluso si se recarga la página. Un **advisory lock de PostgreSQL** serializa dos peticiones simultáneas, de modo que solo una reserva se crea (la otra recibe `409`).
 - `.env`, `.env.local`, builds, logs y el cliente Prisma generado están en `.gitignore`. El repositorio solo incluye `.env.example` con valores de demostración.
+- **Rate limiting** en los endpoints públicos sensibles: login (10 intentos / 15 min), reservas (10 / hora), emergencias (5 / hora), búsqueda y seguimiento (30 / 10 min) y un techo general de 600 peticiones por minuto. Responde `429` con `Retry-After` y funciona por IP real detrás del proxy (`trust proxy`).
 - Los nombres, teléfonos, DNI, correos y contraseñas del seed son ficticios. En un despliegue público cambia `JWT_SECRET`, el dominio de `CORS_ORIGIN` y la contraseña del admin demo desde **/admin/personal**; si no necesitas cuentas de prueba, arranca con `SEED_DEMO=false`.
 
 ---

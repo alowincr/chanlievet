@@ -2,6 +2,12 @@ import { Router } from "express";
 import { isClinicOpenAt } from "../../lib/schedule";
 import { requireAuth, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
+import {
+  bookingLimiter,
+  emergencyLimiter,
+  lookupLimiter,
+  trackActionLimiter,
+} from "../../middleware/rate-limit";
 import { parseId } from "../../utils/params";
 import {
   appointmentActionAuthSchema,
@@ -34,7 +40,7 @@ const router = Router();
  * POST /api/appointments — reserva pública (sin registro).
  * Devuelve el código de seguimiento de la cita.
  */
-router.post("/", validateBody(createAppointmentSchema), async (req, res) => {
+router.post("/", bookingLimiter, validateBody(createAppointmentSchema), async (req, res) => {
   const appointment = await createAppointment(req.body);
   res.status(201).json({ appointment });
 });
@@ -63,6 +69,7 @@ router.get("/emergency/status", (_req, res) => {
 /** POST /api/appointments/emergency — triaje público prioritario. */
 router.post(
   "/emergency",
+  emergencyLimiter,
   validateBody(createEmergencySchema),
   async (req, res) => {
     const appointment = await createEmergencyAppointment(req.body);
@@ -74,18 +81,18 @@ router.post(
  * POST /api/appointments/lookup — recupera el código con celular + mascota.
  * Pensado para quien perdió el código de seguimiento.
  */
-router.post("/lookup", validateBody(lookupAppointmentsSchema), async (req, res) => {
+router.post("/lookup", lookupLimiter, validateBody(lookupAppointmentsSchema), async (req, res) => {
   res.json({ appointments: await lookupAppointments(req.body) });
 });
 
 /** GET /api/appointments/track/:code — seguimiento público por código. */
-router.get("/track/:code", async (req, res) => {
-  res.json({ appointment: await getAppointmentByCode(req.params.code) });
+router.get("/track/:code", lookupLimiter, async (req, res) => {
+  res.json({ appointment: await getAppointmentByCode(String(req.params.code)) });
 });
 
 /** POST /api/appointments/track/:code/check-in — ingreso a la sala de espera. */
-router.post("/track/:code/check-in", async (req, res) => {
-  res.json({ appointment: await checkInAppointment(req.params.code) });
+router.post("/track/:code/check-in", trackActionLimiter, async (req, res) => {
+  res.json({ appointment: await checkInAppointment(String(req.params.code)) });
 });
 
 /**
@@ -94,6 +101,7 @@ router.post("/track/:code/check-in", async (req, res) => {
  */
 router.post(
   "/track/:code/cancel",
+  trackActionLimiter,
   validateBody(appointmentActionAuthSchema),
   async (req, res) => {
     const appointment = await cancelAppointmentByCode(
@@ -110,6 +118,7 @@ router.post(
  */
 router.post(
   "/track/:code/reschedule",
+  trackActionLimiter,
   validateBody(rescheduleAppointmentSchema),
   async (req, res) => {
     const appointment = await rescheduleAppointmentByCode(

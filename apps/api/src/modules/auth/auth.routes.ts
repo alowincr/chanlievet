@@ -3,12 +3,13 @@ import { loginSchema } from "./auth.schema";
 import { login } from "./auth.service";
 import { validateBody } from "../../middleware/validate";
 import { requireAuth } from "../../middleware/auth";
+import { loginLimiter } from "../../middleware/rate-limit";
 import { getAuthenticatedUser } from "../staff/staff.service";
 
 const router = Router();
 
 /** POST /api/auth/login — inicio de sesión del personal. */
-router.post("/login", validateBody(loginSchema), async (req, res) => {
+router.post("/login", loginLimiter, validateBody(loginSchema), async (req, res) => {
   const result = await login(req.body);
   res.json(result);
 });
