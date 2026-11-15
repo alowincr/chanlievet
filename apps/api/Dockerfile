@@ -21,7 +21,8 @@ RUN npm run build
 
 # ---------------------------------------------------------------------------
 # Runtime: imagen liviana con el bundle, migraciones y Prisma CLI.
-# Al iniciar aplica migraciones, ejecuta el seed idempotente y levanta la API.
+# Al iniciar aplica migraciones, ejecuta el seed SOLO si SEED_DEMO=true y
+# levanta la API. En producción permite arrancar sin cuentas de demostración.
 # ---------------------------------------------------------------------------
 FROM node:22-alpine AS runner
 
@@ -44,4 +45,4 @@ USER nodejs
 
 EXPOSE 4000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/seed.js && node dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && if [ \"$SEED_DEMO\" = \"true\" ]; then node dist/seed.js; else echo 'SEED_DEMO != true: se omite el seed de demostracion.'; fi && node dist/index.js"]

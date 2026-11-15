@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Instrument_Sans } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const displayFont = Bricolage_Grotesque({
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
   },
   description:
     "Consultas, vacunas, baños y una tienda de productos para perros y gatos en San Juan de Lurigancho. Agenda tu cita sin registro y sigue tu turno en vivo.",
-  metadataBase: new URL("https://chanlievet.pe"),
+  metadataBase: new URL(SITE_URL),
   openGraph: {
     title: "ChanlieVet · Clínica veterinaria",
     description:

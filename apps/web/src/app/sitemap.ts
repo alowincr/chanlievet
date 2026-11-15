@@ -1,7 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SERVER_API_URL } from "@/lib/api";
-
-const BASE_URL = "https://chanlievet.pe";
+import { SITE_URL } from "@/lib/site";
 
 // El sitemap consulta el catálogo en cada petición: en Docker el API no existe
 // durante el build de la imagen y los productos quedarían fuera del XML.
@@ -22,7 +21,7 @@ const PUBLIC_ROUTES: Array<{
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const routes: MetadataRoute.Sitemap = PUBLIC_ROUTES.map((route) => ({
-    url: `${BASE_URL}${route.path}`,
+    url: `${SITE_URL}${route.path}`,
     lastModified: new Date(),
     changeFrequency: route.changeFrequency,
     priority: route.priority,
@@ -42,7 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         if (!product.slug || product.active === false) continue;
 
         routes.push({
-          url: `${BASE_URL}/producto/${product.slug}`,
+          url: `${SITE_URL}/producto/${product.slug}`,
           lastModified: new Date(),
           changeFrequency: "weekly",
           priority: 0.7,

@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
-
-const BASE_URL = "https://chanlievet.pe";
+import { SITE_URL } from "@/lib/site";
 
 /** El panel, el login y el carrito no aportan nada a los buscadores. */
 export default function robots(): MetadataRoute.Robots {
@@ -12,7 +11,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin", "/veterinario", "/login", "/carrito"],
       },
     ],
-    sitemap: `${BASE_URL}/sitemap.xml`,
-    host: BASE_URL,
+    sitemap: `${SITE_URL}/sitemap.xml`,
+    host: SITE_URL,
   };
 }

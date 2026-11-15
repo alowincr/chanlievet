@@ -125,7 +125,7 @@ Servicios:
 
 Al iniciar, el contenedor del API:
 1. Aplica las migraciones (`prisma migrate deploy`).
-2. Ejecuta el seed si la base está vacía (idempotente).
+2. Ejecuta el seed si `SEED_DEMO=true` (idempotente; Compose ya lo activa en local).
 3. Levanta Express + Socket.io en el puerto `4000`.
 
 > El puerto **5433** en el host evita chocar con un PostgreSQL local que ya use 5432.
@@ -147,6 +147,72 @@ npm run docker:down
 # Borrar también los datos:
 npm run docker:reset
 ```
+
+---
+
+## ☁️ Despliegue gratuito (Vercel + Render + Neon)
+
+Arquitectura recomendada para publicar la demo sin pagar:
+
+| Pieza | Proveedor | Plan |
+| --- | --- | --- |
+| Web (Next.js) | Vercel | Hobby |
+| API (Docker) | Render | Web Service free |
+| PostgreSQL | Neon | Free |
+
+> Render duerme el servicio tras unos minutos sin tráfico: la primera visita puede tardar ~30-60 s. Los planes gratuitos cambian con el tiempo; confirma límites y precios al crear la cuenta. Render ejecuta el `Dockerfile` del API y soporta WebSockets.
+
+### 1. Base de datos en Neon
+
+Crea un proyecto y copia la cadena de conexión **directa** (sin `-pooler`):
+
+```text
+postgresql://usuario:clave@ep-xxx.neon.tech/neondb?sslmode=require
+```
+
+### 2. API en Render
+
+- **New → Web Service** → conecta el repositorio.
+- **Root Directory**: `apps/api` · **Runtime**: Docker · **Health Check Path**: `/api/health`.
+
+Variables de entorno:
+
+| Variable | Valor |
+| --- | --- |
+| `DATABASE_URL` | cadena de Neon |
+| `JWT_SECRET` | `openssl rand -hex 32` (64 caracteres) |
+| `CORS_ORIGIN` | `https://tu-web.vercel.app` |
+| `NODE_ENV` | `production` |
+| `SEED_DEMO` | `true` en el primer despliegue |
+| `JWT_EXPIRES_IN` | `12h` |
+| `LOW_STOCK_THRESHOLD` | `5` |
+| `SLOT_CAPACITY` | `1` |
+
+No definas `PORT`: Render lo inyecta. El contenedor aplica migraciones y, si `SEED_DEMO=true`, siembra el catálogo y las cuentas demo. Cuando ya tengas datos puedes cambiar `SEED_DEMO` a `false` para que los arranques no vuelvan a ejecutar el seed.
+
+### 3. Web en Vercel
+
+- Importa el repositorio. **Root Directory**: `apps/web` · **Framework**: Next.js.
+- Variables (se incrustan en el build):
+
+| Variable | Valor |
+| --- | --- |
+| `NEXT_PUBLIC_API_URL` | `https://tu-api.onrender.com` |
+| `NEXT_PUBLIC_SITE_URL` | `https://tu-web.vercel.app` |
+
+### 4. Cerrar CORS
+
+Actualiza `CORS_ORIGIN` en Render con el dominio final de Vercel y guarda: el servicio se reinicia solo. Sin esto el navegador bloqueará las peticiones y Socket.io no conectará.
+
+### 5. Verificar
+
+- `/api/health` responde `{"ok":true}`.
+- La web carga productos, servicios y equipo.
+- Login demo, reserva de cita y sala de espera en vivo funcionan.
+- `sitemap.xml` incluye las fichas de producto y apunta a tu dominio.
+- No hay errores en la consola del navegador.
+
+> Si usas dominio propio, actualiza `NEXT_PUBLIC_SITE_URL` y `CORS_ORIGIN`, y vuelve a desplegar la web porque `NEXT_PUBLIC_SITE_URL` se incrusta en el build.
 
 ---
 
@@ -199,8 +265,9 @@ npm run dev:web
 | Variable | Descripción |
 | --- | --- |
 | `NEXT_PUBLIC_API_URL` | URL pública del API (REST + Socket.io) |
+| `NEXT_PUBLIC_SITE_URL` | URL pública del sitio (metadata, robots y sitemap) |
 
-> `NEXT_PUBLIC_API_URL` se incrusta en el bundle al construir. Si cambias la URL del API en Docker, reconstruye la imagen con `--build-arg NEXT_PUBLIC_API_URL=...`.
+> `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_SITE_URL` se incrustan en el bundle al construir. Si cambias esas URLs en Docker, reconstruye la imagen con `--build-arg`.
 
 ---
 
@@ -214,7 +281,7 @@ npm run dev:web
 | Veterinaria (medicina felina) | `crojas@chanlievet.pe` | `chanlievet123` |
 | Veterinario (cirugía) | `dsalazar@chanlievet.pe` | `chanlievet123` |
 
-El seed también crea servicios, 5 categorías, 16 productos, dueños, mascotas y 8 citas en distintos estados. Es idempotente: si la base ya tiene datos, solo completa los perfiles públicos del equipo sin borrar información.
+El seed también crea servicios, 5 categorías, 16 productos, dueños, mascotas y 8 citas en distintos estados. Es idempotente: si la base ya tiene datos, solo completa los perfiles públicos del equipo sin borrar información. En Docker solo se ejecuta cuando `SEED_DEMO=true`.
 
 > Si quieres volver a poblar la base desde cero (esto **borra** staff, productos, dueños, mascotas y citas), usa `npm run db:reset`.
 
@@ -342,7 +409,7 @@ La agenda se controla por intervalos: cada cita ocupa `[scheduledAt, scheduledAt
 - El check-in solo se permite el **día de la cita** (calendario de Lima) y desde 2 horas antes.
 - El servidor rechaza reservas duplicadas con el mismo celular y el mismo horario, incluso si se recarga la página. Un **advisory lock de PostgreSQL** serializa dos peticiones simultáneas, de modo que solo una reserva se crea (la otra recibe `409`).
 - `.env`, `.env.local`, builds, logs y el cliente Prisma generado están en `.gitignore`. El repositorio solo incluye `.env.example` con valores de demostración.
-- Los nombres, teléfonos, DNI, correos y contraseñas del seed son ficticios. Cambia `JWT_SECRET` y las credenciales demo antes de un despliegue real.
+- Los nombres, teléfonos, DNI, correos y contraseñas del seed son ficticios. En un despliegue público cambia `JWT_SECRET`, el dominio de `CORS_ORIGIN` y la contraseña del admin demo desde **/admin/personal**; si no necesitas cuentas de prueba, arranca con `SEED_DEMO=false`.
 
 ---
 
