@@ -28,6 +28,14 @@ Plataforma web para una clínica veterinaria ficticia con **una sola sede en San
 
 ## 📸 Capturas
 
+**Tienda con catálogo real** — fotos, públicos, stock y filtros por categoría:
+
+![Tienda](docs/screenshots/tienda.png)
+
+**Ficha de producto** — stock real, carrito y coordinación directa por WhatsApp:
+
+![Detalle de producto](docs/screenshots/producto.png)
+
 **Reserva de cita sin registro** — cupos calculados por duración real del servicio:
 
 ![Agendar cita](docs/screenshots/citas.png)

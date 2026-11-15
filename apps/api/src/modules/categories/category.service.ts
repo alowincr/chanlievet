@@ -5,7 +5,8 @@ export async function listCategories(): Promise<CategoryDTO[]> {
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
     include: {
-      _count: { select: { products: true } },
+      // La tienda solo muestra productos activos: el conteo debe coincidir.
+      _count: { select: { products: { where: { active: true } } } },
     },
   });
 

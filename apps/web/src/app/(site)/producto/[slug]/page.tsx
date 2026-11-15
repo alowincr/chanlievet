@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { ProductDetail } from "@/components/product-detail";
 import { SERVER_API_URL } from "@/lib/api";
 
@@ -60,6 +61,10 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const product = await getProduct(slug);
+
+  // Producto inexistente o desactivado: 404 real, no solo un aviso en cliente.
+  if (!product) notFound();
 
   return <ProductDetail slug={slug} />;
 }
